@@ -58,6 +58,9 @@ def show_my_program(user):
             st.markdown(f"> 📝 {phase['notes']}")
 
         days = get_days(phase["id"])
+        if not days:
+            st.info("No days added to this phase yet.")
+            continue
         cols = st.columns(min(len(days), 2))
         for i, day in enumerate(days):
             with cols[i % 2]:
