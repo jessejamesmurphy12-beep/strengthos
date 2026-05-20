@@ -2,7 +2,7 @@ import streamlit as st
 from database import (get_athletes, get_programs, create_program, get_program,
                       get_phases, add_phase, get_days, add_day,
                       get_exercises_for_day, add_exercise, delete_exercise,
-                      delete_day, delete_phase, assign_program,
+                      delete_day, delete_phase, delete_program, assign_program,
                       get_exercise_library, get_coach_stats, create_user, get_athlete_logs)
 
 FOCUS_OPTIONS = ["Strength", "Power", "Stability", "Recovery", "Conditioning", "Upper Body", "Lower Body", "Full Body"]
@@ -207,6 +207,10 @@ def show_programs(user):
         for prog in programs:
             with st.expander(f"**{prog['name']}** — {prog['weeks']} weeks · {prog['goal']}"):
                 st.markdown(f"*{prog.get('description','') or 'No description'}*")
+                if st.button(f"🗑 Delete Program", key=f"del_prog_{prog['id']}", type="secondary"):
+                    delete_program(prog["id"])
+                    st.success("Program deleted.")
+                    st.rerun()
                 st.markdown("---")
                 show_program_builder(prog)
 
