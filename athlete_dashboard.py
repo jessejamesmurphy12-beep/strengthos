@@ -77,8 +77,16 @@ def show_workout(user):
     with st.form("log_day"):
         weights = {}
         for ex in exercises:
-            st.markdown(f"**{ex['name']}** — {ex['sets']} sets × {ex['reps']}" +
-                        (f" · *{ex['notes']}*" if ex.get("notes") else ""))
+            raw_notes = ex.get("notes") or ""
+            is_superset = raw_notes.startswith("[Superset")
+            if is_superset:
+                ss_tag = raw_notes.split("]")[0] + "]"
+                clean_notes = raw_notes.replace(ss_tag, "").strip()
+                st.markdown(f"🔗 **{ss_tag} {ex['name']}** — {ex['sets']} sets × {ex['reps']}" +
+                            (f" · *{clean_notes}*" if clean_notes else ""))
+            else:
+                st.markdown(f"**{ex['name']}** — {ex['sets']} sets × {ex['reps']}" +
+                            (f" · *{raw_notes}*" if raw_notes else ""))
             c1, c2 = st.columns([2, 3])
             weight = c1.text_input("Weight used", key=f"w_{ex['id']}", placeholder="e.g. 135 lbs")
             notes  = c2.text_input("Notes (optional)", key=f"n_{ex['id']}", placeholder="How it felt...")
