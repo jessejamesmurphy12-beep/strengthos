@@ -261,6 +261,16 @@ def delete_phase(phase_id):
     conn.commit()
     conn.close()
 
+def delete_program(program_id):
+    conn = get_conn()
+    phases = get_phases(program_id)
+    for p in phases:
+        delete_phase(p["id"])
+    conn.execute("DELETE FROM athlete_programs WHERE program_id=?", (program_id,))
+    conn.execute("DELETE FROM programs WHERE id=?", (program_id,))
+    conn.commit()
+    conn.close()
+
 def assign_program(athlete_id, program_id):
     conn = get_conn()
     conn.execute("UPDATE athlete_programs SET status='inactive' WHERE athlete_id=?", (athlete_id,))
