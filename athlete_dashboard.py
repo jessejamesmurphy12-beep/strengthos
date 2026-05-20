@@ -16,121 +16,89 @@ def athlete_dashboard():
         <div style='font-size:0.85rem; padding:0.5rem 0;'>👋 {user["name"]}</div>
         """, unsafe_allow_html=True)
 
-        page = st.radio("Navigation", ["My Program", "Log Workout", "My Progress"],
+        page = st.radio("Navigation", ["Today's Workout", "My History"],
                         label_visibility="collapsed")
         st.markdown("<br>" * 8, unsafe_allow_html=True)
         if st.button("Sign Out", use_container_width=True):
             st.session_state.user = None
             st.rerun()
 
-    if page == "My Program":
-        show_my_program(user)
-    elif page == "Log Workout":
-        show_log_workout(user)
-    elif page == "My Progress":
-        show_progress(user)
+    if page == "Today's Workout":
+        show_workout(user)
+    elif page == "My History":
+        show_history(user)
 
 
-def show_my_program(user):
-    st.markdown(f"## 🏋️ My Program")
+def show_workout(user):
+    st.markdown("## 🏋️ Today's Workout")
+
     prog = get_assigned_program(user["id"])
     if not prog:
         st.info("You haven't been assigned a program yet. Ask your coach!")
         return
 
-    st.markdown(f"### {prog['name']}")
-    st.markdown(f"*{prog.get('description','') or ''}*")
-    c1, c2 = st.columns(2)
-    c1.metric("Total Weeks", prog["weeks"])
-    c2.metric("Goal", prog["goal"])
-
-    st.markdown("---")
-    phases = get_phases(prog["id"])
-    for phase in phases:
-        st.markdown(f"""
-        <div style='background:#1B4F72; color:white; padding:0.6rem 1rem;
-                    border-radius:8px; font-weight:700; margin:1rem 0 0.5rem;'>
-            {phase['name']} &nbsp;·&nbsp; Weeks {phase['week_start']}–{phase['week_end']}
-            &nbsp;·&nbsp; {phase['sets']} sets · {phase['reps']} reps · RPE {phase['rpe']}
-        </div>
-        """, unsafe_allow_html=True)
-        if phase.get("notes"):
-            st.markdown(f"> 📝 {phase['notes']}")
-
-        days = get_days(phase["id"])
-        if not days:
-            st.info("No days added to this phase yet.")
-            continue
-        cols = st.columns(min(len(days), 2))
-        for i, day in enumerate(days):
-            with cols[i % 2]:
-                st.markdown(f"""
-                <div style='background:#f8fafc; border-radius:8px; padding:0.75rem 1rem;
-                            border-left:4px solid #3b82f6; margin-bottom:0.75rem;'>
-                    <div style='font-weight:700; margin-bottom:6px;'>
-                        Day {day['day_number']} — {day['title']}
-                    </div>
-                """, unsafe_allow_html=True)
-                exercises = get_exercises_for_day(day["id"])
-                for ex in exercises:
-                    st.markdown(f"• **{ex['name']}** — {ex['sets']} sets × {ex['reps']}" +
-                                (f" · *{ex['notes']}*" if ex.get("notes") else ""))
-                st.markdown("</div>", unsafe_allow_html=True)
-
-
-def show_log_workout(user):
-    st.markdown("## 📝 Log Workout")
-    prog = get_assigned_program(user["id"])
-    if not prog:
-        st.info("No program assigned yet.")
-        return
-
     phases = get_phases(prog["id"])
     if not phases:
-        st.info("Program has no phases yet.")
+        st.info("Your program has no phases yet.")
         return
 
-    phase_map = {p["name"]: p for p in phases}
-    sel_phase = st.selectbox("Phase", list(phase_map.keys()))
-    phase = phase_map[sel_phase]
+    # Pick phase
+    phase_names = [p["name"] for p in phases]
+    sel_phase_name = st.selectbox("Phase", phase_names)
+    phase = next(p for p in phases if p["name"] == sel_phase_name)
 
+    # Pick day
     days = get_days(phase["id"])
     if not days:
         st.info("No days in this phase yet.")
         return
 
-    day_map = {f"Day {d['day_number']} — {d['title']}": d for d in days}
-    sel_day = st.selectbox("Day", list(day_map.keys()))
-    day = day_map[sel_day]
+    day_names = [f"Day {d['day_number']} — {d['title']}" for d in days]
+    sel_day_name = st.selectbox("Day", day_names)
+    day = days[day_names.index(sel_day_name)]
 
     exercises = get_exercises_for_day(day["id"])
     if not exercises:
-        st.info("No exercises in this day.")
+        st.info("No exercises in this day yet.")
         return
 
     st.markdown("---")
-    st.markdown(f"**Logging: {sel_day}**")
-    st.markdown(f"*Phase params: {phase['sets']} sets · {phase['reps']} reps · RPE {phase['rpe']}*")
+    st.markdown(f"""
+    <div style='background:#1B4F72; color:white; padding:0.6rem 1rem;
+                border-radius:8px; font-weight:700; margin-bottom:1rem;'>
+        {sel_day_name} &nbsp;·&nbsp; {phase['sets']} sets · {phase['reps']} reps · RPE {phase['rpe']}
+    </div>
+    """, unsafe_allow_html=True)
 
-    for ex in exercises:
-        with st.expander(f"**{ex['name']}** — {ex['sets']} × {ex['reps']}"):
-            with st.form(f"log_{ex['id']}"):
-                c1,c2,c3,c4 = st.columns(4)
-                sets_done = c1.number_input("Sets Done", min_value=0, max_value=20,
-                                             value=int(ex["sets"]) if ex["sets"] and ex["sets"].isdigit() else 3,
-                                             key=f"sd_{ex['id']}")
-                reps_done = c2.text_input("Reps Done", value=ex["reps"] or "", key=f"rd_{ex['id']}")
-                weight = c3.text_input("Weight (lbs/kg)", key=f"wt_{ex['id']}", placeholder="135 lbs")
-                rpe = c4.text_input("RPE", key=f"rpe_{ex['id']}", placeholder="7")
-                notes = st.text_input("Notes", key=f"n_{ex['id']}", placeholder="How it felt...")
-                if st.form_submit_button("✅ Log Set", type="primary"):
-                    log_workout(user["id"], ex["id"], sets_done, reps_done, weight, rpe, notes)
-                    st.success("Logged!")
+    st.markdown("### Log Your Weights")
+    st.markdown("Fill in the weight you used for each exercise, then hit **Save Workout**.")
+
+    # One form for the whole day
+    with st.form("log_day"):
+        weights = {}
+        for ex in exercises:
+            st.markdown(f"**{ex['name']}** — {ex['sets']} sets × {ex['reps']}" +
+                        (f" · *{ex['notes']}*" if ex.get("notes") else ""))
+            c1, c2 = st.columns([2, 3])
+            weight = c1.text_input("Weight used", key=f"w_{ex['id']}", placeholder="e.g. 135 lbs")
+            notes  = c2.text_input("Notes (optional)", key=f"n_{ex['id']}", placeholder="How it felt...")
+            weights[ex["id"]] = {"weight": weight, "notes": notes,
+                                  "sets": ex["sets"], "reps": ex["reps"]}
+            st.markdown("---")
+
+        submitted = st.form_submit_button("💾 Save Workout", type="primary", use_container_width=True)
+        if submitted:
+            for ex_id, data in weights.items():
+                log_workout(user["id"], ex_id,
+                            data["sets"], data["reps"],
+                            data["weight"], "", data["notes"])
+            st.success("✅ Workout saved!")
+            st.balloons()
 
 
-def show_progress(user):
-    st.markdown("## 📈 My Progress")
-    logs = get_athlete_logs(user["id"], limit=100)
+def show_history(user):
+    st.markdown("## 📋 My History")
+    logs = get_athlete_logs(user["id"], limit=200)
     if not logs:
         st.info("No workouts logged yet.")
         return
@@ -138,26 +106,22 @@ def show_progress(user):
     import pandas as pd
     df = pd.DataFrame(logs)
 
-    st.markdown(f"**{len(df)} total entries logged**")
-
-    # Summary metrics
+    # Summary
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total Sessions Logged", len(df["logged_at"].str[:10].unique()))
+    c1.metric("Sessions Logged", len(df["logged_at"].str[:10].unique()))
     c2.metric("Exercises Tracked", df["exercise_name"].nunique())
-    c3.metric("Most Recent", df["logged_at"].iloc[0][:10])
+    c3.metric("Last Logged", df["logged_at"].iloc[0][:10])
 
     st.markdown("---")
-    st.markdown("### Recent Logs")
-    display = df[["logged_at","exercise_name","sets_done","reps_done","weight","rpe_actual","notes"]].head(30)
-    display.columns = ["Date","Exercise","Sets","Reps","Weight","RPE","Notes"]
-    display["Date"] = display["Date"].str[:10]
-    st.dataframe(display, use_container_width=True, hide_index=True)
 
-    st.markdown("### Exercise History")
-    exercises = df["exercise_name"].dropna().unique().tolist()
-    if exercises:
-        sel_ex = st.selectbox("Select Exercise", exercises)
-        ex_df = df[df["exercise_name"] == sel_ex][["logged_at","sets_done","reps_done","weight","rpe_actual","notes"]]
-        ex_df.columns = ["Date","Sets","Reps","Weight","RPE","Notes"]
-        ex_df["Date"] = ex_df["Date"].str[:10]
-        st.dataframe(ex_df, use_container_width=True, hide_index=True)
+    # Filter by exercise
+    exercises = ["All"] + sorted(df["exercise_name"].dropna().unique().tolist())
+    sel_ex = st.selectbox("Filter by exercise", exercises)
+
+    filtered = df if sel_ex == "All" else df[df["exercise_name"] == sel_ex]
+
+    display = filtered[["logged_at", "exercise_name", "sets_done", "reps_done", "weight", "notes"]].copy()
+    display.columns = ["Date", "Exercise", "Sets", "Reps", "Weight", "Notes"]
+    display["Date"] = display["Date"].str[:10]
+
+    st.dataframe(display, use_container_width=True, hide_index=True)
