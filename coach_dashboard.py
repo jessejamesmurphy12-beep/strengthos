@@ -1,15 +1,33 @@
 import streamlit as st
-from database import (get_athletes, get_programs, create_program, get_program,
+import pandas as pd
+from database import (get_athletes, get_programs, create_program,
                       get_phases, add_phase, get_days, add_day,
                       get_exercises_for_day, add_exercise, delete_exercise,
                       delete_day, delete_phase, delete_program, assign_program,
-                      get_exercise_library, get_coach_stats, create_user, get_athlete_logs)
+                      get_exercise_library, get_coach_stats, create_user,
+                      get_athlete_logs, get_conn)
 
-FOCUS_OPTIONS = ["Strength", "Power", "Stability", "Recovery", "Conditioning", "Upper Body", "Lower Body", "Full Body"]
-FOCUS_COLORS  = {"Strength":"#1B4F72","Power":"#6E2F0A","Stability":"#1D6A39",
-                 "Recovery":"#555555","Conditioning":"#7D3C0A","Upper Body":"#2874A6",
-                 "Lower Body":"#1A5276","Full Body":"#4A235A"}
+FOCUS_OPTIONS = ["Strength", "Power", "Stability", "Recovery", "Conditioning",
+                 "Upper Body", "Lower Body", "Full Body"]
+FOCUS_COLORS  = {
+    "Strength":"#1B4F72","Power":"#6E2F0A","Stability":"#1D6A39",
+    "Recovery":"#555555","Conditioning":"#7D3C0A","Upper Body":"#2874A6",
+    "Lower Body":"#1A5276","Full Body":"#4A235A"
+}
 
+# ── helpers ────────────────────────────────────────────────────────────────────
+def add_exercise_with_superset(day_id, name, sets, reps, notes, superset_group=""):
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO exercises (day_id,name,sets,reps,notes,sort_order) VALUES (?,?,?,?,?,?)",
+        (day_id, name, sets, reps,
+         f"[Superset {superset_group}] {notes}".strip() if superset_group else notes,
+         0)
+    )
+    conn.commit()
+    conn.close()
+
+# ── main router ────────────────────────────────────────────────────────────────
 def coach_dashboard():
     user = st.session_state.user
 
@@ -24,33 +42,31 @@ def coach_dashboard():
         <div style='font-size:0.85rem; padding:0.5rem 0;'>👋 {user["name"]}</div>
         """, unsafe_allow_html=True)
 
-        page = st.radio("Navigation", ["Dashboard", "Athletes", "Programs", "Exercise Library"],
+        page = st.radio("Navigation",
+                        ["Dashboard", "Athletes", "Programs", "Build Workout", "Exercise Library"],
                         label_visibility="collapsed")
-        st.markdown("<br>" * 8, unsafe_allow_html=True)
+        st.markdown("<br>" * 6, unsafe_allow_html=True)
         if st.button("Sign Out", use_container_width=True):
             st.session_state.user = None
             st.rerun()
 
-    if page == "Dashboard":
-        show_coach_home(user)
-    elif page == "Athletes":
-        show_athletes(user)
-    elif page == "Programs":
-        show_programs(user)
-    elif page == "Exercise Library":
-        show_library()
+    if page == "Dashboard":         show_coach_home(user)
+    elif page == "Athletes":        show_athletes(user)
+    elif page == "Programs":        show_programs(user)
+    elif page == "Build Workout":   show_workout_builder(user)
+    elif page == "Exercise Library":show_library()
 
 
-# ── Home ───────────────────────────────────────────────────────────────────────
+# ── Dashboard ──────────────────────────────────────────────────────────────────
 def show_coach_home(user):
     st.markdown(f"## 👋 Welcome back, {user['name'].split()[0]}")
     stats = get_coach_stats(user["id"])
 
     c1, c2, c3 = st.columns(3)
     for col, label, val, icon in [
-        (c1, "Total Athletes", stats["athletes"], "🏃"),
-        (c2, "Programs Built", stats["programs"], "📋"),
-        (c3, "Active Assignments", stats["assigned"], "✅"),
+        (c1, "Total Athletes",      stats["athletes"], "🏃"),
+        (c2, "Programs Built",      stats["programs"], "📋"),
+        (c3, "Active Assignments",  stats["assigned"], "✅"),
     ]:
         col.markdown(f"""
         <div class='metric-card'>
@@ -63,43 +79,34 @@ def show_coach_home(user):
     st.markdown("<br>", unsafe_allow_html=True)
     col_a, col_b = st.columns(2)
     with col_a:
-        st.markdown("<div class='section-header'>Recent Athletes</div>", unsafe_allow_html=True)
-        athletes = get_athletes(user["id"])[:8]
-        if athletes:
-            for a in athletes:
-                with st.container():
-                    st.markdown(f"""
-                    <div style='padding:0.6rem 0.8rem; background:#f8fafc; border-radius:8px;
-                                margin-bottom:6px; border-left:3px solid #3b82f6;'>
-                        <b>{a['name']}</b>
-                        <span style='color:#64748b; font-size:0.8rem; margin-left:8px;'>
-                            {a.get('sport','')} · {a.get('position','')} · {a.get('year','')}
-                        </span>
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.info("No athletes yet. Add them in the Athletes tab.")
-
+        st.markdown("<div class='section-header'>Athletes</div>", unsafe_allow_html=True)
+        for a in get_athletes(user["id"])[:8]:
+            st.markdown(f"""
+            <div style='padding:0.5rem 0.8rem; background:#f8fafc; border-radius:8px;
+                        margin-bottom:5px; border-left:3px solid #3b82f6;'>
+                <b>{a['name']}</b>
+                <span style='color:#64748b; font-size:0.8rem; margin-left:8px;'>
+                    {a.get('sport','')} · {a.get('position','')} · {a.get('year','')}
+                </span>
+            </div>""", unsafe_allow_html=True)
     with col_b:
-        st.markdown("<div class='section-header'>Recent Programs</div>", unsafe_allow_html=True)
-        programs = get_programs(user["id"])[:6]
-        if programs:
-            for p in programs:
-                st.markdown(f"""
-                <div style='padding:0.6rem 0.8rem; background:#f8fafc; border-radius:8px;
-                            margin-bottom:6px; border-left:3px solid #10b981;'>
-                    <b>{p['name']}</b>
-                    <span style='color:#64748b; font-size:0.8rem; margin-left:8px;'>{p['weeks']} weeks · {p['goal']}</span>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.info("No programs yet. Build one in the Programs tab.")
+        st.markdown("<div class='section-header'>Programs</div>", unsafe_allow_html=True)
+        for p in get_programs(user["id"])[:6]:
+            st.markdown(f"""
+            <div style='padding:0.5rem 0.8rem; background:#f8fafc; border-radius:8px;
+                        margin-bottom:5px; border-left:3px solid #10b981;'>
+                <b>{p['name']}</b>
+                <span style='color:#64748b; font-size:0.8rem; margin-left:8px;'>
+                    {p['weeks']} wks · {p['goal']}
+                </span>
+            </div>""", unsafe_allow_html=True)
 
 
 # ── Athletes ───────────────────────────────────────────────────────────────────
 def show_athletes(user):
     st.markdown("## 🏃 Athletes")
-    tab_roster, tab_add, tab_assign, tab_logs = st.tabs(["Roster", "Add Athlete", "Assign Program", "View Logs"])
+    tab_roster, tab_add, tab_assign, tab_logs = st.tabs(
+        ["Roster", "Add Athlete", "Assign Program", "View Logs"])
 
     with tab_roster:
         athletes = get_athletes(user["id"])
@@ -112,49 +119,40 @@ def show_athletes(user):
                     c1, c2 = st.columns(2)
                     c1.write(f"📧 {a['email']}")
                     c2.write(f"🏅 {a.get('sport','')} · {a.get('position','')}")
-                    if a.get("notes"):
-                        st.write(f"📝 {a['notes']}")
 
     with tab_add:
         st.markdown("### Add New Athlete")
         with st.form("add_athlete_form"):
-            name = st.text_input("Full Name")
+            name  = st.text_input("Full Name")
             email = st.text_input("Email")
-            pw = st.text_input("Temporary Password", type="password", value="athlete123")
+            pw    = st.text_input("Temporary Password", type="password", value="athlete123")
             c1, c2, c3 = st.columns(3)
-            sport = c1.text_input("Sport")
+            sport    = c1.text_input("Sport")
             position = c2.text_input("Position")
-            year = c3.selectbox("Year", ["Freshman","Sophomore","Junior","Senior","Grad"])
-            notes = st.text_area("Notes (optional)", height=80)
-            submitted = st.form_submit_button("Add Athlete", type="primary")
-            if submitted:
+            year     = c3.selectbox("Year", ["Freshman","Sophomore","Junior","Senior","Grad"])
+            if st.form_submit_button("Add Athlete", type="primary"):
                 if not name or not email:
                     st.error("Name and email required.")
                 else:
                     ok, msg = create_user(name, email, pw, "athlete",
                                           coach_id=user["id"], sport=sport,
                                           position=position, year=year)
-                    if ok:
-                        st.success(f"✅ {name} added! They can log in with {email} / {pw}")
-                    else:
-                        st.error(msg)
+                    st.success(f"✅ {name} added! Login: {email} / {pw}") if ok else st.error(msg)
 
     with tab_assign:
         st.markdown("### Assign Program to Athlete")
         athletes = get_athletes(user["id"])
         programs = get_programs(user["id"])
-        if not athletes:
-            st.info("Add athletes first.")
-        elif not programs:
-            st.info("Build a program first.")
+        if not athletes: st.info("Add athletes first.")
+        elif not programs: st.info("Build a program first.")
         else:
             athlete_map = {a["name"]: a["id"] for a in athletes}
             program_map = {p["name"]: p["id"] for p in programs}
-            sel_athlete = st.selectbox("Select Athlete", list(athlete_map.keys()))
-            sel_program = st.selectbox("Select Program", list(program_map.keys()))
+            sel_a = st.selectbox("Athlete", list(athlete_map.keys()))
+            sel_p = st.selectbox("Program", list(program_map.keys()))
             if st.button("Assign Program", type="primary"):
-                assign_program(athlete_map[sel_athlete], program_map[sel_program])
-                st.success(f"✅ {sel_program} assigned to {sel_athlete}!")
+                assign_program(athlete_map[sel_a], program_map[sel_p])
+                st.success(f"✅ {sel_p} assigned to {sel_a}!")
 
     with tab_logs:
         st.markdown("### Athlete Workout Logs")
@@ -166,136 +164,224 @@ def show_athletes(user):
             sel = st.selectbox("Select Athlete", list(athlete_map.keys()), key="log_athlete")
             logs = get_athlete_logs(athlete_map[sel])
             if not logs:
-                st.info("No logs yet for this athlete.")
+                st.info("No logs yet.")
             else:
-                import pandas as pd
-                df = pd.DataFrame(logs)[["logged_at","exercise_name","sets_done","reps_done","weight","rpe_actual","notes"]]
-                df.columns = ["Date","Exercise","Sets","Reps","Weight","RPE","Notes"]
+                df = pd.DataFrame(logs)[["logged_at","exercise_name","sets_done","reps_done","weight","notes"]]
+                df.columns = ["Date","Exercise","Sets","Reps","Weight","Notes"]
                 st.dataframe(df, use_container_width=True)
 
 
-# ── Programs ───────────────────────────────────────────────────────────────────
+# ── Programs (create / manage structure) ──────────────────────────────────────
 def show_programs(user):
     st.markdown("## 📋 Programs")
-    tab_list, tab_new = st.tabs(["My Programs", "Create New Program"])
+    tab_list, tab_new = st.tabs(["My Programs", "Create New"])
 
     with tab_new:
-        st.markdown("### New Program")
-        with st.form("new_program_form"):
-            name = st.text_input("Program Name", placeholder="e.g. Summer Lifting Plan 2025")
-            description = st.text_area("Description", height=80)
-            c1, c2 = st.columns(2)
-            goal = c1.selectbox("Primary Goal", ["Strength & Injury Prevention", "Velocity Development",
-                                                  "Hypertrophy", "Power", "Conditioning", "Balanced"])
-            weeks = c2.number_input("Total Weeks", min_value=1, max_value=52, value=12)
-            submitted = st.form_submit_button("Create Program", type="primary")
-            if submitted:
-                if not name:
-                    st.error("Program name required.")
+        with st.form("new_prog"):
+            name  = st.text_input("Program Name", placeholder="Summer Lifting Plan 2025")
+            desc  = st.text_area("Description", height=70)
+            c1,c2 = st.columns(2)
+            goal  = c1.selectbox("Goal", ["Strength & Injury Prevention","Velocity Development",
+                                           "Hypertrophy","Power","Conditioning","Balanced"])
+            weeks = c2.number_input("Total Weeks", 1, 52, 12)
+            if st.form_submit_button("Create Program", type="primary"):
+                if not name: st.error("Name required.")
                 else:
-                    pid = create_program(user["id"], name, description, goal, weeks)
-                    st.success(f"✅ Program created!")
-                    st.session_state["open_program"] = pid
+                    create_program(user["id"], name, desc, goal, weeks)
+                    st.success("✅ Program created! Now go to Build Workout to add days.")
                     st.rerun()
 
     with tab_list:
         programs = get_programs(user["id"])
         if not programs:
-            st.info("No programs yet. Create one above.")
+            st.info("No programs yet.")
             return
-
         for prog in programs:
-            with st.expander(f"**{prog['name']}** — {prog['weeks']} weeks · {prog['goal']}"):
+            with st.expander(f"**{prog['name']}** — {prog['weeks']} wks · {prog['goal']}"):
                 st.markdown(f"*{prog.get('description','') or 'No description'}*")
-                if st.button(f"🗑 Delete Program", key=f"del_prog_{prog['id']}", type="secondary"):
-                    delete_program(prog["id"])
-                    st.success("Program deleted.")
-                    st.rerun()
+
+                # Phase management inside expander
+                phases = get_phases(prog["id"])
+                if phases:
+                    st.markdown("**Phases:**")
+                    for ph in phases:
+                        days = get_days(ph["id"])
+                        st.markdown(f"• **{ph['name']}** (Wks {ph['week_start']}–{ph['week_end']}) — {len(days)} days")
+                        if st.button(f"🗑 Delete Phase: {ph['name']}", key=f"dph_{ph['id']}"):
+                            delete_phase(ph["id"]); st.rerun()
+
                 st.markdown("---")
-                show_program_builder(prog)
+                # Add phase inline
+                with st.form(f"ph_{prog['id']}"):
+                    st.markdown("**Add Phase**")
+                    ph_name = st.text_input("Phase Name", placeholder="Phase 1 — Accumulation", key=f"phn_{prog['id']}")
+                    c1,c2,c3,c4,c5 = st.columns(5)
+                    ws   = c1.number_input("Wk Start", 1, 52, 1,  key=f"ws_{prog['id']}")
+                    we   = c2.number_input("Wk End",   1, 52, 4,  key=f"we_{prog['id']}")
+                    sets = c3.text_input("Sets", "3–4",            key=f"st_{prog['id']}")
+                    reps = c4.text_input("Reps", "8–12",           key=f"rp_{prog['id']}")
+                    rpe  = c5.text_input("RPE",  "6–7",            key=f"rpe_{prog['id']}")
+                    if st.form_submit_button("Add Phase"):
+                        if ph_name:
+                            add_phase(prog["id"], ph_name, ws, we, sets, reps, rpe, "")
+                            st.rerun()
+
+                st.markdown("---")
+                if st.button("🗑 Delete Entire Program", key=f"dp_{prog['id']}"):
+                    delete_program(prog["id"]); st.success("Deleted."); st.rerun()
 
 
-def show_program_builder(prog):
-    pid = prog["id"]
-    st.markdown("### Phases")
+# ── BUILD WORKOUT (the fast day builder) ──────────────────────────────────────
+def show_workout_builder(user):
+    st.markdown("## 🏗️ Build Workout")
 
-    phases = get_phases(pid)
-    for phase in phases:
-        ph_col = "#1B4F72"
-        st.markdown(f"""
-        <div style='background:{ph_col}; color:white; padding:0.5rem 1rem;
-                    border-radius:8px 8px 0 0; font-weight:700; margin-top:1rem;'>
-            {phase['name']}  &nbsp;·&nbsp; Weeks {phase['week_start']}–{phase['week_end']}
-            &nbsp;·&nbsp; {phase['sets']} sets · {phase['reps']} reps · RPE {phase['rpe']}
-        </div>
-        """, unsafe_allow_html=True)
+    programs = get_programs(user["id"])
+    if not programs:
+        st.info("Create a program first in the Programs tab.")
+        return
 
-        days = get_days(phase["id"])
-        for day in days:
-            focus_color = FOCUS_COLORS.get(day["focus"], "#2874A6")
-            st.markdown(f"""
-            <div style='background:#1e293b; color:white; padding:0.4rem 1rem;
-                        font-weight:600; font-size:0.9rem;'>
-                Day {day['day_number']} — {day['title']}
-                <span style='background:{focus_color}; color:white; font-size:0.75rem;
-                             padding:2px 8px; border-radius:10px; margin-left:8px;'>{day['focus']}</span>
-            </div>
-            """, unsafe_allow_html=True)
+    # Step 1 — pick program
+    prog_map = {p["name"]: p for p in programs}
+    sel_prog = st.selectbox("Program", list(prog_map.keys()))
+    prog = prog_map[sel_prog]
 
-            exercises = get_exercises_for_day(day["id"])
-            if exercises:
-                import pandas as pd
-                df = pd.DataFrame(exercises)[["name","sets","reps","notes"]]
-                df.columns = ["Exercise","Sets","Reps","Notes"]
-                st.dataframe(df, use_container_width=True, hide_index=True)
+    phases = get_phases(prog["id"])
+    if not phases:
+        st.warning("This program has no phases yet. Add phases in the Programs tab.")
+        return
 
-            with st.form(f"add_ex_{day['id']}"):
-                c1,c2,c3,c4 = st.columns([3,1,1,2])
-                ex_name = c1.text_input("Exercise", key=f"exn_{day['id']}", placeholder="Exercise name")
-                ex_sets = c2.text_input("Sets", key=f"exs_{day['id']}", placeholder="4")
-                ex_reps = c3.text_input("Reps", key=f"exr_{day['id']}", placeholder="6–8")
-                ex_notes = c4.text_input("Notes", key=f"exno_{day['id']}", placeholder="Optional")
-                if st.form_submit_button("➕ Add Exercise"):
-                    if ex_name:
-                        add_exercise(day["id"], ex_name, ex_sets, ex_reps, ex_notes)
-                        st.rerun()
+    # Step 2 — pick or create a day
+    st.markdown("---")
+    col_left, col_right = st.columns([1, 1])
 
-            if st.button(f"🗑 Delete Day {day['day_number']}", key=f"del_day_{day['id']}"):
-                delete_day(day["id"])
-                st.rerun()
+    with col_left:
+        st.markdown("#### Select Existing Day")
+        all_days = []
+        for ph in phases:
+            for d in get_days(ph["id"]):
+                all_days.append({"label": f"[{ph['name']}] Day {d['day_number']} — {d['title']}", "day": d, "phase": ph})
 
-        # Add day form
-        with st.form(f"add_day_{phase['id']}"):
-            st.markdown("**Add Day**")
-            c1,c2,c3 = st.columns(3)
-            day_num = c1.number_input("Day #", min_value=1, max_value=7, value=len(days)+1, key=f"dnum_{phase['id']}")
-            day_title = c2.text_input("Title", key=f"dtitle_{phase['id']}", placeholder="Lower Body — Posterior Chain")
-            day_focus = c3.selectbox("Focus", FOCUS_OPTIONS, key=f"dfocus_{phase['id']}")
-            if st.form_submit_button("Add Day"):
+        if all_days:
+            day_labels = [x["label"] for x in all_days]
+            sel_label  = st.selectbox("Choose a day to edit", day_labels, key="sel_day_edit")
+            chosen     = next(x for x in all_days if x["label"] == sel_label)
+            active_day = chosen["day"]
+            active_phase = chosen["phase"]
+        else:
+            st.info("No days yet — create one →")
+            active_day = None
+            active_phase = None
+
+    with col_right:
+        st.markdown("#### Create New Day")
+        with st.form("new_day_form"):
+            phase_map = {ph["name"]: ph for ph in phases}
+            sel_phase_name = st.selectbox("Phase", list(phase_map.keys()))
+            day_title  = st.text_input("Day Title", placeholder="Lower Body — Posterior Chain")
+            c1, c2    = st.columns(2)
+            day_number = c1.number_input("Day #", 1, 7, 1)
+            day_focus  = c2.selectbox("Focus", FOCUS_OPTIONS)
+            if st.form_submit_button("➕ Create Day", type="primary"):
                 if day_title:
-                    add_day(phase["id"], day_num, day_title, day_focus)
+                    ph = phase_map[sel_phase_name]
+                    add_day(ph["id"], day_number, day_title, day_focus)
+                    st.success(f"✅ Day created!")
                     st.rerun()
 
-        if st.button(f"🗑 Delete Phase: {phase['name']}", key=f"del_phase_{phase['id']}"):
-            delete_phase(phase["id"])
-            st.rerun()
+    if not active_day:
+        return
 
-    # Add phase form
+    # Step 3 — show current exercises + add form
     st.markdown("---")
-    st.markdown("#### ➕ Add Phase")
-    with st.form(f"add_phase_{pid}"):
-        ph_name = st.text_input("Phase Name", placeholder="Phase 1 — Accumulation")
-        c1,c2,c3,c4,c5 = st.columns(5)
-        ws = c1.number_input("Week Start", min_value=1, value=1, key=f"ws_{pid}")
-        we = c2.number_input("Week End", min_value=1, value=4, key=f"we_{pid}")
-        sets = c3.text_input("Sets", value="3–4", key=f"sets_{pid}")
-        reps = c4.text_input("Reps", value="8–12", key=f"reps_{pid}")
-        rpe  = c5.text_input("RPE", value="6–7", key=f"rpe_{pid}")
-        ph_notes = st.text_area("Phase Notes", height=60, key=f"pnotes_{pid}")
-        if st.form_submit_button("Add Phase", type="primary"):
-            if ph_name:
-                add_phase(pid, ph_name, ws, we, sets, reps, rpe, ph_notes)
+    fc = FOCUS_COLORS.get(active_day["focus"], "#2874A6")
+    st.markdown(f"""
+    <div style='background:{fc}; color:white; padding:0.6rem 1.2rem;
+                border-radius:8px; font-weight:700; font-size:1rem; margin-bottom:1rem;'>
+        {active_phase['name']}  ·  Day {active_day['day_number']} — {active_day['title']}
+        &nbsp; <span style='font-weight:400; font-size:0.85rem;'>
+        {active_phase['sets']} sets · {active_phase['reps']} reps · RPE {active_phase['rpe']}
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    exercises = get_exercises_for_day(active_day["id"])
+
+    if exercises:
+        st.markdown("**Current Exercises:**")
+        for i, ex in enumerate(exercises):
+            c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 2, 1])
+            c1.markdown(f"**{ex['name']}**")
+            c2.markdown(ex.get("sets",""))
+            c3.markdown(ex.get("reps",""))
+            c4.markdown(f"*{ex.get('notes','') or ''}*")
+            if c5.button("🗑", key=f"delex_{ex['id']}"):
+                delete_exercise(ex["id"])
                 st.rerun()
+        st.markdown("---")
+    else:
+        st.info("No exercises yet. Add them below.")
+
+    # Add exercises — tabs for single vs superset
+    tab_single, tab_superset = st.tabs(["➕ Add Exercise", "🔗 Add Superset"])
+
+    with tab_single:
+        with st.form("add_single"):
+            # Search library or type custom
+            library = get_exercise_library()
+            lib_names = ["— type custom name below —"] + [e["name"] for e in library]
+            picked = st.selectbox("Pick from library (optional)", lib_names, key="lib_pick")
+            custom_name = st.text_input("Exercise Name", value="" if picked.startswith("—") else picked,
+                                         placeholder="e.g. Trap Bar Deadlift")
+            c1, c2, c3 = st.columns(3)
+            sets  = c1.text_input("Sets",  placeholder="4")
+            reps  = c2.text_input("Reps",  placeholder="6–8")
+            notes = c3.text_input("Notes", placeholder="Optional cue")
+            if st.form_submit_button("Add Exercise", type="primary"):
+                name = custom_name if custom_name else picked
+                if name and not name.startswith("—"):
+                    add_exercise(active_day["id"], name, sets, reps, notes)
+                    st.success(f"✅ {name} added!")
+                    st.rerun()
+                else:
+                    st.error("Enter or pick an exercise name.")
+
+    with tab_superset:
+        st.markdown("Add 2–3 exercises as a superset. They'll be grouped together for the athlete.")
+        with st.form("add_superset"):
+            ss_label = st.text_input("Superset Label", value="A", placeholder="A, B, C...")
+            st.markdown("**Exercise 1**")
+            c1,c2,c3 = st.columns(3)
+            n1 = c1.text_input("Name",  key="ss_n1", placeholder="Exercise 1")
+            s1 = c2.text_input("Sets",  key="ss_s1", placeholder="3")
+            r1 = c3.text_input("Reps",  key="ss_r1", placeholder="10")
+            st.markdown("**Exercise 2**")
+            c1,c2,c3 = st.columns(3)
+            n2 = c1.text_input("Name",  key="ss_n2", placeholder="Exercise 2")
+            s2 = c2.text_input("Sets",  key="ss_s2", placeholder="3")
+            r2 = c3.text_input("Reps",  key="ss_r2", placeholder="10")
+            st.markdown("**Exercise 3 (optional)**")
+            c1,c2,c3 = st.columns(3)
+            n3 = c1.text_input("Name",  key="ss_n3", placeholder="Leave blank if not needed")
+            s3 = c2.text_input("Sets",  key="ss_s3", placeholder="3")
+            r3 = c3.text_input("Reps",  key="ss_r3", placeholder="10")
+
+            if st.form_submit_button("Add Superset", type="primary"):
+                added = 0
+                for name, sets, reps in [(n1,s1,r1),(n2,s2,r2),(n3,s3,r3)]:
+                    if name.strip():
+                        add_exercise_with_superset(active_day["id"], name, sets, reps, "", ss_label)
+                        added += 1
+                if added >= 2:
+                    st.success(f"✅ Superset {ss_label} added ({added} exercises)!")
+                    st.rerun()
+                else:
+                    st.error("Enter at least 2 exercises for a superset.")
+
+    st.markdown("---")
+    if st.button(f"🗑 Delete This Day", key=f"del_active_day"):
+        delete_day(active_day["id"])
+        st.success("Day deleted.")
+        st.rerun()
 
 
 # ── Exercise Library ───────────────────────────────────────────────────────────
@@ -305,16 +391,13 @@ def show_library():
     if not library:
         st.info("Library is empty.")
         return
-
-    search = st.text_input("🔍 Search exercises", placeholder="e.g. deadlift, rotational, core...")
+    search     = st.text_input("🔍 Search", placeholder="e.g. deadlift, core, rotational...")
     categories = sorted(set(e["category"] for e in library))
-    cat_filter = st.multiselect("Filter by category", categories, default=categories)
-
-    filtered = [e for e in library
-                if e["category"] in cat_filter
-                and (not search or search.lower() in e["name"].lower()
-                     or search.lower() in (e.get("muscle_group","") or "").lower())]
-
+    cat_filter = st.multiselect("Category", categories, default=categories)
+    filtered   = [e for e in library
+                  if e["category"] in cat_filter
+                  and (not search or search.lower() in e["name"].lower()
+                       or search.lower() in (e.get("muscle_group","") or "").lower())]
     st.markdown(f"**{len(filtered)} exercises**")
     for ex in filtered:
         with st.expander(f"**{ex['name']}** — {ex['category']} · {ex['muscle_group']}"):
