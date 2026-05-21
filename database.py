@@ -3,7 +3,7 @@ import bcrypt
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:$Whatthefuckelseineed@db.eokkeqgkcqmzfmpgcmmt.supabase.co:5432/postgres")
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 def get_conn():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
