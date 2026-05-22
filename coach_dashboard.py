@@ -18,8 +18,9 @@ FOCUS_COLORS  = {
 # ── helpers ────────────────────────────────────────────────────────────────────
 def add_exercise_with_superset(day_id, name, sets, reps, notes, superset_group=""):
     conn = get_conn()
-    conn.execute(
-        "INSERT INTO exercises (day_id,name,sets,reps,notes,sort_order) VALUES (?,?,?,?,?,?)",
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO exercises (day_id,name,sets,reps,notes,sort_order) VALUES (%s,%s,%s,%s,%s,%s)",
         (day_id, name, sets, reps,
          f"[Superset {superset_group}] {notes}".strip() if superset_group else notes,
          0)
