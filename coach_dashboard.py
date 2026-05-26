@@ -72,8 +72,8 @@ def show_coach_home(user):
         col.markdown(f"""
         <div class='metric-card'>
             <div style='font-size:1.8rem;'>{icon}</div>
-            <div style='font-size:2rem; font-weight:800; margin:4px 0;'>{val}</div>
-            <div style='font-size:0.85rem; color:#94a3b8;'>{label}</div>
+            <div style='font-size:2rem; font-weight:800; margin:4px 0; color:#ffffff;'>{val}</div>
+            <div style='font-size:0.85rem; color:#c9a84c; font-weight:600;'>{label}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -83,10 +83,11 @@ def show_coach_home(user):
         st.markdown("<div class='section-header'>Athletes</div>", unsafe_allow_html=True)
         for a in get_athletes(user["id"])[:8]:
             st.markdown(f"""
-            <div style='padding:0.5rem 0.8rem; background:#f8fafc; border-radius:8px;
-                        margin-bottom:5px; border-left:3px solid #3b82f6;'>
-                <b>{a['name']}</b>
-                <span style='color:#64748b; font-size:0.8rem; margin-left:8px;'>
+            <div style='padding:0.5rem 0.8rem; background:#ffffff; border-radius:8px;
+                        margin-bottom:5px; border-left:4px solid #c9a84c;
+                        border: 1px solid #1a3a6b;'>
+                <b style='color:#0a1628;'>{a['name']}</b>
+                <span style='color:#1a3a6b; font-size:0.8rem; margin-left:8px;'>
                     {a.get('sport','')} · {a.get('position','')} · {a.get('year','')}
                 </span>
             </div>""", unsafe_allow_html=True)
@@ -94,10 +95,11 @@ def show_coach_home(user):
         st.markdown("<div class='section-header'>Programs</div>", unsafe_allow_html=True)
         for p in get_programs(user["id"])[:6]:
             st.markdown(f"""
-            <div style='padding:0.5rem 0.8rem; background:#f8fafc; border-radius:8px;
-                        margin-bottom:5px; border-left:3px solid #10b981;'>
-                <b>{p['name']}</b>
-                <span style='color:#64748b; font-size:0.8rem; margin-left:8px;'>
+            <div style='padding:0.5rem 0.8rem; background:#ffffff; border-radius:8px;
+                        margin-bottom:5px; border-left:4px solid #c9a84c;
+                        border: 1px solid #1a3a6b;'>
+                <b style='color:#0a1628;'>{p['name']}</b>
+                <span style='color:#1a3a6b; font-size:0.8rem; margin-left:8px;'>
                     {p['weeks']} wks · {p['goal']}
                 </span>
             </div>""", unsafe_allow_html=True)
