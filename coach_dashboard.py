@@ -83,11 +83,11 @@ def show_coach_home(user):
         st.markdown("<div class='section-header'>Athletes</div>", unsafe_allow_html=True)
         for a in get_athletes(user["id"])[:8]:
             st.markdown(f"""
-            <div style='padding:0.5rem 0.8rem; background:#ffffff; border-radius:8px;
+            <div style='padding:0.5rem 0.8rem; background:#112040; border-radius:8px;
                         margin-bottom:5px; border-left:4px solid #c9a84c;
                         border: 1px solid #1a3a6b;'>
-                <b style='color:#0a1628;'>{a['name']}</b>
-                <span style='color:#1a3a6b; font-size:0.8rem; margin-left:8px;'>
+                <b style='color:#ffffff;'>{a['name']}</b>
+                <span style='color:#c9a84c; font-size:0.8rem; margin-left:8px;'>
                     {a.get('sport','')} · {a.get('position','')} · {a.get('year','')}
                 </span>
             </div>""", unsafe_allow_html=True)
@@ -95,11 +95,11 @@ def show_coach_home(user):
         st.markdown("<div class='section-header'>Programs</div>", unsafe_allow_html=True)
         for p in get_programs(user["id"])[:6]:
             st.markdown(f"""
-            <div style='padding:0.5rem 0.8rem; background:#ffffff; border-radius:8px;
+            <div style='padding:0.5rem 0.8rem; background:#112040; border-radius:8px;
                         margin-bottom:5px; border-left:4px solid #c9a84c;
                         border: 1px solid #1a3a6b;'>
-                <b style='color:#0a1628;'>{p['name']}</b>
-                <span style='color:#1a3a6b; font-size:0.8rem; margin-left:8px;'>
+                <b style='color:#ffffff;'>{p['name']}</b>
+                <span style='color:#c9a84c; font-size:0.8rem; margin-left:8px;'>
                     {p['weeks']} wks · {p['goal']}
                 </span>
             </div>""", unsafe_allow_html=True)
