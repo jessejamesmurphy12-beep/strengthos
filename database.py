@@ -161,6 +161,27 @@ def get_athletes(coach_id):
     conn.close()
     return [dict(r) for r in rows]
 
+
+
+def update_athlete(athlete_id, name, sport, position, year, notes):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("UPDATE users SET name=%s WHERE id=%s", (name, athlete_id))
+    c.execute("UPDATE athletes SET sport=%s, position=%s, year=%s, notes=%s WHERE user_id=%s",
+              (sport, position, year, notes, athlete_id))
+    conn.commit()
+    conn.close()
+
+def delete_athlete(athlete_id):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("DELETE FROM athlete_programs WHERE athlete_id=%s", (athlete_id,))
+    c.execute("DELETE FROM workout_logs WHERE athlete_id=%s", (athlete_id,))
+    c.execute("DELETE FROM athletes WHERE user_id=%s", (athlete_id,))
+    c.execute("DELETE FROM users WHERE id=%s", (athlete_id,))
+    conn.commit()
+    conn.close()
+
 def get_programs(coach_id):
     conn = get_conn()
     c = conn.cursor()
