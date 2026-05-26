@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from database import (get_athletes, get_programs, create_program, delete_athlete, update_athlete,
+from database import (get_athletes, get_programs, create_program, delete_athlete, update_athlete, update_athlete_password,
                       get_phases, add_phase, get_days, add_day,
                       get_exercises_for_day, add_exercise, delete_exercise,
                       delete_day, delete_phase, delete_program, assign_program,
@@ -133,9 +133,13 @@ def show_athletes(user):
                                             index=["Freshman","Sophomore","Junior","Senior","Grad"].index(a.get("year","Freshman")) if a.get("year") in ["Freshman","Sophomore","Junior","Senior","Grad"] else 0,
                                             key=f"ey_{a['id']}")
                         new_notes = st.text_area("Notes", value=a.get("notes","") or "", height=60, key=f"eno_{a['id']}")
+                        st.markdown("**Reset Password** *(leave blank to keep current)*")
+                        new_pw = st.text_input("New Password", type="password", key=f"epw_{a['id']}", placeholder="Leave blank to keep current")
                         ec1b, ec2b = st.columns(2)
                         if ec1b.form_submit_button("💾 Save Changes", type="primary", use_container_width=True):
                             update_athlete(a["id"], new_name, new_sport, new_position, new_year, new_notes)
+                            if new_pw:
+                                update_athlete_password(a["id"], new_pw)
                             st.success("✅ Updated!")
                             st.rerun()
                         if ec2b.form_submit_button("🗑 Remove Athlete", use_container_width=True):
