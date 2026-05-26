@@ -163,6 +163,15 @@ def get_athletes(coach_id):
 
 
 
+
+def update_athlete_password(athlete_id, new_password):
+    conn = get_conn()
+    c = conn.cursor()
+    pw_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    c.execute("UPDATE users SET password_hash=%s WHERE id=%s", (pw_hash, athlete_id))
+    conn.commit()
+    conn.close()
+
 def update_athlete(athlete_id, name, sport, position, year, notes):
     conn = get_conn()
     c = conn.cursor()
