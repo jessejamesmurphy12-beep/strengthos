@@ -6,9 +6,10 @@ from database import (get_assigned_program, get_phases, get_days,
 # ── Save individual sets ───────────────────────────────────────────────────────
 def log_set(athlete_id, exercise_id, set_num, reps, weight, notes):
     conn = get_conn()
-    conn.execute("""
+    c = conn.cursor()
+    c.execute("""
         INSERT INTO workout_logs (athlete_id, exercise_id, sets_done, reps_done, weight, rpe_actual, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (athlete_id, exercise_id, set_num, reps, weight, "", notes))
     conn.commit()
     conn.close()
