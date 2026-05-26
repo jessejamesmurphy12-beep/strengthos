@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from database import (get_athletes, get_programs, create_program,
+from database import (get_athletes, get_programs, create_program, delete_athlete, update_athlete,
                       get_phases, add_phase, get_days, add_day,
                       get_exercises_for_day, add_exercise, delete_exercise,
                       delete_day, delete_phase, delete_program, assign_program,
@@ -120,6 +120,28 @@ def show_athletes(user):
                     c1, c2 = st.columns(2)
                     c1.write(f"📧 {a['email']}")
                     c2.write(f"🏅 {a.get('sport','')} · {a.get('position','')}")
+
+                    # Edit form
+                    with st.form(key=f"edit_{a['id']}"):
+                        st.markdown("**Edit Athlete**")
+                        new_name = st.text_input("Name", value=a["name"], key=f"en_{a['id']}")
+                        ec1, ec2, ec3 = st.columns(3)
+                        new_sport    = ec1.text_input("Sport",    value=a.get("sport",""),    key=f"es_{a['id']}")
+                        new_position = ec2.text_input("Position", value=a.get("position",""), key=f"ep_{a['id']}")
+                        new_year     = ec3.selectbox("Year",
+                                            ["Freshman","Sophomore","Junior","Senior","Grad"],
+                                            index=["Freshman","Sophomore","Junior","Senior","Grad"].index(a.get("year","Freshman")) if a.get("year") in ["Freshman","Sophomore","Junior","Senior","Grad"] else 0,
+                                            key=f"ey_{a['id']}")
+                        new_notes = st.text_area("Notes", value=a.get("notes","") or "", height=60, key=f"eno_{a['id']}")
+                        ec1b, ec2b = st.columns(2)
+                        if ec1b.form_submit_button("💾 Save Changes", type="primary", use_container_width=True):
+                            update_athlete(a["id"], new_name, new_sport, new_position, new_year, new_notes)
+                            st.success("✅ Updated!")
+                            st.rerun()
+                        if ec2b.form_submit_button("🗑 Remove Athlete", use_container_width=True):
+                            delete_athlete(a["id"])
+                            st.success(f"{a['name']} removed.")
+                            st.rerun()
 
     with tab_add:
         st.markdown("### Add New Athlete")
