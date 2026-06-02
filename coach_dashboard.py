@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from calendar_view import coach_calendar
 from database import (get_athletes, get_programs, create_program, delete_athlete, update_athlete, update_athlete_password,
                       get_phases, add_phase, get_days, add_day,
                       get_exercises_for_day, add_exercise, delete_exercise,
@@ -44,7 +45,7 @@ def coach_dashboard():
         """, unsafe_allow_html=True)
 
         page = st.radio("Navigation",
-                        ["Dashboard", "Athletes", "Programs", "Build Workout", "Exercise Library"],
+                        ["Dashboard", "Athletes", "Programs", "Build Workout", "Calendar", "Exercise Library"],
                         label_visibility="collapsed")
         st.markdown("<br>" * 6, unsafe_allow_html=True)
         if st.button("Sign Out", use_container_width=True):
@@ -55,6 +56,7 @@ def coach_dashboard():
     elif page == "Athletes":        show_athletes(user)
     elif page == "Programs":        show_programs(user)
     elif page == "Build Workout":   show_workout_builder(user)
+    elif page == "Calendar":        coach_calendar(user)
     elif page == "Exercise Library":show_library()
 
 
