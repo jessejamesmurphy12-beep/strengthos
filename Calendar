@@ -1,0 +1,184 @@
+import streamlit as st
+from datetime import date, timedelta
+from database import (get_athletes, get_schedule_events, get_athlete_schedule,
+                      add_schedule_event, delete_schedule_event,
+                      get_programs, get_phases, get_days)
+
+EVENT_COLORS = {
+    "Workout":    ("#1a3a6b", "#c9a84c"),
+    "Practice":   ("#1d6a39", "#a8e6bf"),
+    "Run":        ("#6e2f0a", "#f4a460"),
+    "Film":       ("#4a235a", "#d7aefb"),
+    "Rest":       ("#333333", "#aaaaaa"),
+    "Other":      ("#1a1a1a", "#ffffff"),
+}
+
+def get_week_dates(offset=0):
+    today = date.today() + timedelta(weeks=offset)
+    monday = today - timedelta(days=today.weekday())
+    return [monday + timedelta(days=i) for i in range(7)]
+
+def coach_calendar(user):
+    st.markdown("## 📅 Weekly Schedule")
+
+    if "week_offset" not in st.session_state:
+        st.session_state.week_offset = 0
+
+    # Week navigation
+    col_prev, col_title, col_next = st.columns([1, 4, 1])
+    with col_prev:
+        if st.button("◀ Prev"):
+            st.session_state.week_offset -= 1
+            st.rerun()
+    with col_next:
+        if st.button("Next ▶"):
+            st.session_state.week_offset += 1
+            st.rerun()
+
+    week_dates = get_week_dates(st.session_state.week_offset)
+    week_start = week_dates[0]
+    week_end   = week_dates[6]
+
+    with col_title:
+        st.markdown(f"""
+        <div style='text-align:center; padding:0.4rem;
+                    font-weight:700; font-size:1.1rem; color:#c9a84c;'>
+            {week_start.strftime('%b %d')} — {week_end.strftime('%b %d, %Y')}
+        </div>""", unsafe_allow_html=True)
+
+    events = get_schedule_events(user["id"], week_start, week_end)
+
+    # ── Weekly grid ───────────────────────────────────────────────────────────
+    day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    cols = st.columns(7)
+
+    for i, (col, day) in enumerate(zip(cols, week_dates)):
+        is_today = day == date.today()
+        header_color = "#c9a84c" if is_today else "#1a3a6b"
+        with col:
+            st.markdown(f"""
+            <div style='background:{header_color}; color:#ffffff; text-align:center;
+                        border-radius:6px 6px 0 0; padding:0.3rem; font-weight:700;
+                        font-size:0.85rem;'>
+                {day_names[i]}<br>
+                <span style='font-size:1.1rem;'>{day.strftime('%d')}</span>
+            </div>""", unsafe_allow_html=True)
+
+            day_events = [e for e in events if str(e["event_date"]) == str(day)]
+            for ev in day_events:
+                bg, fg = EVENT_COLORS.get(ev["event_type"], ("#1a3a6b","#ffffff"))
+                st.markdown(f"""
+                <div style='background:{bg}; color:{fg}; border-radius:4px;
+                            padding:0.3rem 0.4rem; margin:3px 0; font-size:0.75rem;
+                            border-left:3px solid {fg};'>
+                    <b>{ev['event_type']}</b><br>
+                    {ev['title']}<br>
+                    <span style='opacity:0.8;'>{ev.get('athlete_name','All') or 'All'}</span>
+                </div>""", unsafe_allow_html=True)
+                if st.button("✕", key=f"del_ev_{ev['id']}", help="Remove"):
+                    delete_schedule_event(ev["id"])
+                    st.rerun()
+
+    st.markdown("---")
+
+    # ── Add event form ────────────────────────────────────────────────────────
+    st.markdown("### ➕ Add Event")
+    athletes = get_athletes(user["id"])
+
+    with st.form("add_event_form"):
+        c1, c2 = st.columns(2)
+        title      = c1.text_input("Title", placeholder="e.g. Practice, Morning Run, Lift")
+        event_type = c2.selectbox("Type", list(EVENT_COLORS.keys()))
+
+        c3, c4 = st.columns(2)
+        event_date = c3.date_input("Date", value=date.today())
+
+        athlete_options = {"All Athletes": None} | {a["name"]: a["id"] for a in athletes}
+        sel_athlete = c4.selectbox("Athlete", list(athlete_options.keys()))
+
+        notes = st.text_input("Notes (optional)", placeholder="Any extra details...")
+
+        if st.form_submit_button("Add to Schedule", type="primary", use_container_width=True):
+            if not title:
+                st.error("Title required.")
+            else:
+                athlete_id = athlete_options[sel_athlete]
+                if athlete_id:
+                    add_schedule_event(user["id"], athlete_id, title, event_type, notes, event_date)
+                else:
+                    for a in athletes:
+                        add_schedule_event(user["id"], a["id"], title, event_type, notes, event_date)
+                st.success("✅ Added to schedule!")
+                st.rerun()
+
+    # ── Legend ────────────────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("**Legend:**")
+    leg_cols = st.columns(len(EVENT_COLORS))
+    for col, (etype, (bg, fg)) in zip(leg_cols, EVENT_COLORS.items()):
+        col.markdown(f"""
+        <div style='background:{bg}; color:{fg}; text-align:center;
+                    border-radius:6px; padding:0.2rem 0.4rem; font-size:0.8rem;
+                    font-weight:600;'>{etype}</div>""", unsafe_allow_html=True)
+
+
+def athlete_calendar(user):
+    st.markdown("## 📅 My Week")
+
+    if "ath_week_offset" not in st.session_state:
+        st.session_state.ath_week_offset = 0
+
+    col_prev, col_title, col_next = st.columns([1, 4, 1])
+    with col_prev:
+        if st.button("◀ Prev"):
+            st.session_state.ath_week_offset -= 1
+            st.rerun()
+    with col_next:
+        if st.button("Next ▶"):
+            st.session_state.ath_week_offset += 1
+            st.rerun()
+
+    week_dates = get_week_dates(st.session_state.ath_week_offset)
+    week_start = week_dates[0]
+    week_end   = week_dates[6]
+
+    with col_title:
+        st.markdown(f"""
+        <div style='text-align:center; padding:0.4rem;
+                    font-weight:700; font-size:1.1rem; color:#c9a84c;'>
+            {week_start.strftime('%b %d')} — {week_end.strftime('%b %d, %Y')}
+        </div>""", unsafe_allow_html=True)
+
+    events = get_athlete_schedule(user["id"], week_start, week_end)
+
+    day_names = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+
+    for i, day in enumerate(week_dates):
+        is_today = day == date.today()
+        day_events = [e for e in events if str(e["event_date"]) == str(day)]
+
+        header_bg = "#c9a84c" if is_today else "#1a3a6b"
+        header_color = "#0a1628" if is_today else "#ffffff"
+
+        st.markdown(f"""
+        <div style='background:{header_bg}; color:{header_color}; padding:0.5rem 1rem;
+                    border-radius:8px 8px 0 0; font-weight:700; margin-top:0.75rem;'>
+            {day_names[i]} — {day.strftime('%b %d')}
+            {'  ⬅ Today' if is_today else ''}
+        </div>""", unsafe_allow_html=True)
+
+        if day_events:
+            for ev in day_events:
+                bg, fg = EVENT_COLORS.get(ev["event_type"], ("#1a3a6b","#ffffff"))
+                st.markdown(f"""
+                <div style='background:{bg}; color:{fg}; padding:0.5rem 1rem;
+                            border-left:4px solid {fg}; margin-bottom:4px;'>
+                    <b>{ev['event_type']}</b> — {ev['title']}
+                    {'<br><span style="opacity:0.8; font-size:0.85rem;">' + ev['notes'] + '</span>' if ev.get('notes') else ''}
+                </div>""", unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div style='background:#112040; color:#666; padding:0.4rem 1rem;
+                        font-style:italic; font-size:0.85rem;'>
+                Rest day
+            </div>""", unsafe_allow_html=True)
