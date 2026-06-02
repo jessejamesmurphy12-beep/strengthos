@@ -62,6 +62,16 @@ def init_db():
             assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             status TEXT DEFAULT 'active'
         )""",
+        """CREATE TABLE IF NOT EXISTS schedule_events (
+            id SERIAL PRIMARY KEY,
+            coach_id INTEGER REFERENCES users(id),
+            athlete_id INTEGER REFERENCES users(id),
+            title TEXT NOT NULL,
+            event_type TEXT DEFAULT 'workout',
+            notes TEXT,
+            event_date DATE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
         """CREATE TABLE IF NOT EXISTS workout_logs (
             id SERIAL PRIMARY KEY,
             athlete_id INTEGER REFERENCES users(id),
@@ -350,6 +360,47 @@ def get_athlete_logs(athlete_id, limit=200):
     rows = c.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def add_schedule_event(coach_id, athlete_id, title, event_type, notes, event_date):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""INSERT INTO schedule_events (coach_id, athlete_id, title, event_type, notes, event_date)
+                 VALUES (%s,%s,%s,%s,%s,%s)""",
+              (coach_id, athlete_id, title, event_type, notes, event_date))
+    conn.commit()
+    conn.close()
+
+def get_schedule_events(coach_id, week_start, week_end):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""SELECT se.*, u.name as athlete_name
+                 FROM schedule_events se
+                 LEFT JOIN users u ON se.athlete_id = u.id
+                 WHERE se.coach_id=%s AND se.event_date BETWEEN %s AND %s
+                 ORDER BY se.event_date, se.id""",
+              (coach_id, week_start, week_end))
+    rows = c.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_athlete_schedule(athlete_id, week_start, week_end):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""SELECT * FROM schedule_events
+                 WHERE athlete_id=%s AND event_date BETWEEN %s AND %s
+                 ORDER BY event_date""",
+              (athlete_id, week_start, week_end))
+    rows = c.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def delete_schedule_event(event_id):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("DELETE FROM schedule_events WHERE id=%s", (event_id,))
+    conn.commit()
+    conn.close()
 
 def get_coach_stats(coach_id):
     conn = get_conn()
