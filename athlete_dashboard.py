@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from calendar_view import athlete_calendar
 from database import (get_assigned_program, get_phases, get_days,
                       get_exercises_for_day, get_athlete_logs, get_conn)
 
@@ -29,7 +30,7 @@ def athlete_dashboard():
         <div style='font-size:0.85rem; padding:0.5rem 0;'>👋 {user["name"]}</div>
         """, unsafe_allow_html=True)
 
-        page = st.radio("Navigation", ["Today's Workout", "My History"],
+        page = st.radio("Navigation", ["Today's Workout", "My Week", "My History"],
                         label_visibility="collapsed")
         st.markdown("<br>" * 8, unsafe_allow_html=True)
         if st.button("Sign Out", use_container_width=True):
@@ -38,6 +39,8 @@ def athlete_dashboard():
 
     if page == "Today's Workout":
         show_workout(user)
+    elif page == "My Week":
+        athlete_calendar(user)
     elif page == "My History":
         show_history(user)
 
