@@ -1,6 +1,11 @@
 import streamlit as st
 import pandas as pd
-from calendar_view import athlete_calendar
+try:
+    from calendar_view import athlete_calendar
+except ModuleNotFoundError as exc:
+    if exc.name != "calendar_view":
+        raise
+    athlete_calendar = None
 from database import (get_assigned_program, get_phases, get_days,
                       get_exercises_for_day, get_athlete_logs, get_conn)
 
