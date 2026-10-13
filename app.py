@@ -5,119 +5,92 @@ from coach_dashboard import coach_dashboard
 from athlete_dashboard import athlete_dashboard
 
 st.set_page_config(
-    page_title="StrengthOS",
+    page_title="StrengthOS | Athlete Performance",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# Inject global CSS
-st.markdown("""
-<style>
-    /* ── Global dark background ── */
-    .stApp { background-color: #0a1628; }
-    body, .stMarkdown, p, li, span, div { color: #f0f0f0; }
-
-    /* ── Sidebar ── */
-    [data-testid="stSidebar"] { background-color: #060e1a; }
-    [data-testid="stSidebar"] * { color: #ffffff !important; }
-
-    /* ── Inputs & selects ── */
-    input, textarea, select,
-    [data-testid="stTextInput"] input,
-    [data-testid="stTextArea"] textarea {
-        background-color: #1a2e4a !important;
-        color: #f0f0f0 !important;
-        border: 1px solid #c9a84c !important;
-        border-radius: 6px !important;
-    }
-    label, .stSelectbox label, .stTextInput label,
-    .stTextArea label, .stNumberInput label {
-        color: #c9a84c !important;
-        font-weight: 600 !important;
+# StrengthOS visual system: navy surfaces, restrained gold accents,
+# consistent controls, and responsive spacing.
+st.markdown(
+    """
+    <style>
+    :root {
+        --sos-bg: #08111f;
+        --sos-sidebar: #060d18;
+        --sos-panel: #101d30;
+        --sos-panel-raised: #152640;
+        --sos-border: #263852;
+        --sos-gold: #d2b15c;
+        --sos-gold-soft: #f0d98d;
+        --sos-text: #f3f6fb;
+        --sos-muted: #a7b4c7;
+        --sos-radius: 14px;
     }
 
-    /* ── Buttons ── */
-    .stButton > button {
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.2s;
-        color: #ffffff !important;
-        background-color: #1a3a6b !important;
-        border: 1px solid #c9a84c !important;
+    /* App canvas and main content */
+    .stApp {
+        background:
+            radial-gradient(ellipse at 50% -20%, rgba(34, 69, 115, .22), transparent 55%),
+            var(--sos-bg);
+        color: var(--sos-text);
     }
-    .stButton > button:hover {
-        background-color: #c9a84c !important;
-        color: #0a1628 !important;
+    [data-testid="stAppViewContainer"] > .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1500px;
     }
-
-    /* ── Tabs ── */
-    .stTabs [data-baseweb="tab"] {
-        color: #c9a84c !important;
-        font-weight: 600;
+    [data-testid="stHeader"] {
+        background: rgba(8, 17, 31, .88);
     }
-    .stTabs [aria-selected="true"] {
-        border-bottom: 3px solid #c9a84c !important;
-        color: #ffffff !important;
+    [data-testid="stMainBlockContainer"] {
+        color: var(--sos-text);
     }
 
-    /* ── Metric cards ── */
-    .metric-card {
-        background: #1a3a6b;
-        border-radius: 12px;
-        padding: 1.25rem 1.5rem;
-        border-left: 4px solid #c9a84c;
+    /* Typography: avoid forcing colors on every div/span so widgets remain legible */
+    h1, h2, h3, h4 {
+        color: var(--sos-text);
+        letter-spacing: -0.025em;
     }
-    .metric-card div { color: #ffffff !important; }
-
-    /* ── Section headers ── */
-    .section-header {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #c9a84c;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.4rem;
-        border-bottom: 2px solid #c9a84c;
+    p, li, .stMarkdown, [data-testid="stCaptionContainer"] {
+        color: var(--sos-text);
+    }
+    [data-testid="stCaptionContainer"] {
+        color: var(--sos-muted);
+    }
+    hr {
+        border-color: var(--sos-border);
     }
 
-    /* ── Expanders ── */
-    div[data-testid="stExpander"] {
-        background-color: #112040 !important;
-        border: 1px solid #c9a84c !important;
-        border-radius: 10px;
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #070f1c 0%, var(--sos-sidebar) 100%);
+        border-right: 1px solid #1c2b40;
     }
-    div[data-testid="stExpander"] summary,
-    div[data-testid="stExpander"] p,
-    div[data-testid="stExpander"] span {
-        color: #f0f0f0 !important;
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 1.1rem;
     }
-
-    /* ── Dataframes ── */
-    [data-testid="stDataFrame"] { background-color: #112040; color: #f0f0f0; }
-
-    /* ── Forms ── */
-    [data-testid="stForm"] {
-        background-color: #112040;
-        border: 1px solid #1a3a6b;
-        border-radius: 10px;
-        padding: 1rem;
+    [data-testid="stSidebar"] * {
+        color: var(--sos-text);
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label {
+        border-radius: 9px;
+        padding: .35rem .5rem;
     }
 
-    /* ── Info / success / warning boxes ── */
-    .stAlert { background-color: #1a3a6b !important; color: #f0f0f0 !important; }
-</style>
-""", unsafe_allow_html=True)
-
-init_db()
-
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-if st.session_state.user is None:
-    login_page()
-else:
-    role = st.session_state.user["role"]
-    if role == "coach":
-        coach_dashboard()
-    else:
-        athlete_dashboard()
+    /* Buttons */
+    .stButton > button,
+    .stDownloadButton > button,
+    .stFormSubmitButton > button {
+        min-height: 2.55rem;
+        border-radius: 9px;
+        border: 1px solid #3b5270;
+        background: #172944;
+        color: var(--sos-text);
+        font-weight: 650;
+        transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+    .stButton > button:hover,
+    .stDownloadButton > button:hover,
+    .stFormSubmitButton > button:hover {
