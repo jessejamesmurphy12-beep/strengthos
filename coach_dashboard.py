@@ -38,91 +38,155 @@ def add_exercise_with_superset(day_id, name, sets, reps, notes, superset_group="
 # ── main router ────────────────────────────────────────────────────────────────
 def coach_dashboard():
     user = st.session_state.user
-
     with st.sidebar:
         st.markdown(f"""
-        <div style='padding:1rem 0 0.5rem;'>
-            <div style='font-size:1.5rem;'>⚡</div>
-            <div style='font-weight:700; font-size:1rem;'>StrengthOS</div>
-            <div style='font-size:0.8rem; color:#94a3b8; margin-top:2px;'>Coach Portal</div>
+        <div style="padding:.7rem .1rem 1.15rem;">
+            <div style="display:flex;align-items:center;gap:.65rem;">
+                <div style="display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:13px;background:linear-gradient(145deg,#f0d98d,#c7a447);color:#101827;font-size:1.35rem;font-weight:900;">⚡</div>
+                <div><div style="font-size:1.15rem;font-weight:900;letter-spacing:-.04em;color:#f7f9fc;">StrengthOS</div>
+                <div style="font-size:.67rem;letter-spacing:.15em;font-weight:800;color:#d2b15c;">COACH WORKSPACE</div></div>
+            </div>
+            <div style="margin-top:1.2rem;padding:.8rem .85rem;border:1px solid #263b56;background:#101d30;border-radius:12px;">
+                <div style="font-size:.68rem;color:#91a3ba;text-transform:uppercase;letter-spacing:.1em;font-weight:800;">Signed in as</div>
+                <div style="font-size:.9rem;color:#f3f6fb;font-weight:750;margin-top:.2rem;">{user.get('name','Coach')}</div>
+            </div>
         </div>
-        <hr style='border-color:#1e293b; margin:0.5rem 0;'>
-        <div style='font-size:0.85rem; padding:0.5rem 0;'>👋 {user["name"]}</div>
         """, unsafe_allow_html=True)
-
-        page = st.radio("Navigation",
-                        ["Dashboard", "Athletes", "Programs", "Build Workout", "Calendar", "Exercise Library"],
-                        label_visibility="collapsed")
-        st.markdown("<br>" * 6, unsafe_allow_html=True)
-        if st.button("Sign Out", use_container_width=True):
+        pages = ["Dashboard", "Athletes", "Programs", "Build Workout", "Calendar", "Exercise Library"]
+        target_page = st.session_state.pop("coach_nav_target", None)
+        if target_page in pages:
+            st.session_state["coach_nav"] = target_page
+        default_page = st.session_state.get("coach_nav", "Dashboard")
+        if default_page not in pages:
+            default_page = "Dashboard"
+        page = st.radio("Workspace", pages, index=pages.index(default_page), label_visibility="collapsed", key="coach_nav")
+        st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+        if st.button("↪  Sign Out", use_container_width=True, key="coach_sign_out"):
             st.session_state.user = None
             st.rerun()
 
-    if page == "Dashboard":         show_coach_home(user)
-    elif page == "Athletes":        show_athletes(user)
-    elif page == "Programs":        show_programs(user)
-    elif page == "Build Workout":   show_workout_builder(user)
+    if page == "Dashboard":
+        show_coach_home(user)
+    elif page == "Athletes":
+        show_athletes(user)
+    elif page == "Programs":
+        show_programs(user)
+    elif page == "Build Workout":
+        show_workout_builder(user)
     elif page == "Calendar":
         if coach_calendar is None:
-            st.warning(
-                "The calendar page is not available yet. "
-                "Add calendar_view.py to your GitHub repository to enable it."
-            )
+            _page_header("Training Calendar", "Schedule and organize athlete training.")
+            st.info("The calendar view is not installed yet. Add calendar_view.py to your GitHub repository to enable it.")
         else:
             coach_calendar(user)
-    elif page == "Exercise Library":show_library()
+    elif page == "Exercise Library":
+        show_library()
+
+
+def _page_header(title, subtitle, kicker="COACH WORKSPACE"):
+    st.markdown(f"""
+    <div style="margin:.15rem 0 1.4rem;">
+        <div class="sos-page-kicker">{kicker}</div>
+        <div class="sos-page-title">{title}</div>
+        <div class="sos-page-subtitle">{subtitle}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────
 def show_coach_home(user):
-    st.markdown(f"## 👋 Welcome back, {user['name'].split()[0]}")
+    _page_header(f"Welcome back, {user.get('name', 'Coach').split()[0]}", "Your athlete development workspace at a glance.", "STRENGTHOS / OVERVIEW")
     stats = get_coach_stats(user["id"])
+    athletes = get_athletes(user["id"])
+    programs = get_programs(user["id"])
 
-    c1, c2, c3 = st.columns(3)
-    for col, label, val, icon in [
-        (c1, "Total Athletes",      stats["athletes"], "🏃"),
-        (c2, "Programs Built",      stats["programs"], "📋"),
-        (c3, "Active Assignments",  stats["assigned"], "✅"),
-    ]:
-        col.markdown(f"""
-        <div class='metric-card'>
-            <div style='font-size:1.8rem;'>{icon}</div>
-            <div style='font-size:2rem; font-weight:800; margin:4px 0; color:#ffffff;'>{val}</div>
-            <div style='font-size:0.85rem; color:#c9a84c; font-weight:600;'>{label}</div>
+    metric_specs = [
+        ("ATHLETES", stats.get("athletes", len(athletes)), "Athlete roster"),
+        ("PROGRAMS", stats.get("programs", len(programs)), "Training plans built"),
+        ("ASSIGNMENTS", stats.get("assigned", 0), "Active athlete plans"),
+    ]
+    cols = st.columns(3, gap="medium")
+    for col, (label, value, foot) in zip(cols, metric_specs):
+        with col:
+            st.markdown(f"""
+            <div class="sos-stat">
+                <div class="sos-stat-top">{label}</div>
+                <div class="sos-stat-value">{value}</div>
+                <div class="sos-stat-foot">✦ &nbsp;{foot}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<div style='height:1.1rem'></div>", unsafe_allow_html=True)
+    quick_left, quick_right = st.columns([1.25, 1], gap="medium")
+    with quick_left:
+        st.markdown("""
+        <div class="sos-panel">
+            <div class="sos-panel-label">Quick actions</div>
+            <div class="sos-panel-title">Keep your program moving</div>
+            <div class="sos-panel-copy">Jump straight into the most common coaching tasks.</div>
         </div>
         """, unsafe_allow_html=True)
+        qa1, qa2, qa3 = st.columns(3, gap="small")
+        if qa1.button("＋  Add athlete", use_container_width=True, key="qa_add_athlete"):
+            st.session_state["coach_nav_target"] = "Athletes"
+            st.rerun()
+        if qa2.button("▤  Programs", use_container_width=True, key="qa_programs"):
+            st.session_state["coach_nav_target"] = "Programs"
+            st.rerun()
+        if qa3.button("↗  Build workout", use_container_width=True, key="qa_build"):
+            st.session_state["coach_nav_target"] = "Build Workout"
+            st.rerun()
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.markdown("<div class='section-header'>Athletes</div>", unsafe_allow_html=True)
-        for a in get_athletes(user["id"])[:8]:
-            st.markdown(f"""
-            <div style='padding:0.5rem 0.8rem; background:#112040; border-radius:8px;
-                        margin-bottom:5px; border-left:4px solid #c9a84c;
-                        border: 1px solid #1a3a6b;'>
-                <b style='color:#ffffff;'>{a['name']}</b>
-                <span style='color:#c9a84c; font-size:0.8rem; margin-left:8px;'>
-                    {a.get('sport','')} · {a.get('position','')} · {a.get('year','')}
-                </span>
-            </div>""", unsafe_allow_html=True)
-    with col_b:
-        st.markdown("<div class='section-header'>Programs</div>", unsafe_allow_html=True)
-        for p in get_programs(user["id"])[:6]:
-            st.markdown(f"""
-            <div style='padding:0.5rem 0.8rem; background:#112040; border-radius:8px;
-                        margin-bottom:5px; border-left:4px solid #c9a84c;
-                        border: 1px solid #1a3a6b;'>
-                <b style='color:#ffffff;'>{p['name']}</b>
-                <span style='color:#c9a84c; font-size:0.8rem; margin-left:8px;'>
-                    {p['weeks']} wks · {p['goal']}
-                </span>
-            </div>""", unsafe_allow_html=True)
+        st.markdown("<div style='height:.7rem'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="sos-panel-label" style="margin:0 0 .25rem .1rem;">Recent roster</div>', unsafe_allow_html=True)
+        if not athletes:
+            st.info("Your roster is empty. Add your first athlete to get started.")
+        else:
+            st.markdown('<div class="sos-panel">', unsafe_allow_html=True)
+            for athlete in athletes[:7]:
+                detail = " · ".join(str(x) for x in [athlete.get("sport", ""), athlete.get("position", ""), athlete.get("year", "")] if x)
+                st.markdown(f"""
+                <div class="sos-list-row">
+                    <div><div class="sos-list-name">{athlete.get('name','Athlete')}</div><div class="sos-list-meta">{detail or athlete.get('email','')}</div></div>
+                    <span class="sos-pill">ATHLETE</span>
+                </div>
+                """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with quick_right:
+        st.markdown("""
+        <div class="sos-panel">
+            <div class="sos-panel-label">Program library</div>
+            <div class="sos-panel-title">Your training plans</div>
+            <div class="sos-panel-copy">Programs available to assign and develop.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if not programs:
+            st.info("No programs yet. Create a program to start building your training system.")
+        else:
+            st.markdown('<div class="sos-panel">', unsafe_allow_html=True)
+            for program in programs[:7]:
+                goal = program.get("goal", "Training plan") or "Training plan"
+                st.markdown(f"""
+                <div class="sos-list-row">
+                    <div><div class="sos-list-name">{program.get('name','Untitled program')}</div><div class="sos-list-meta">{program.get('weeks','—')} weeks · {goal}</div></div>
+                    <span class="sos-pill">PROGRAM</span>
+                </div>
+                """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="sos-panel" style="border-color:rgba(210,177,92,.35);background:linear-gradient(145deg,rgba(43,43,39,.5),rgba(16,29,48,.96));">
+            <div class="sos-panel-label">StrengthOS principle</div>
+            <div class="sos-panel-title">Build the athlete. Track the work.</div>
+            <div class="sos-panel-copy">Keep training plans organized, make execution clear, and use workout history to guide the next step.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 # ── Athletes ───────────────────────────────────────────────────────────────────
 def show_athletes(user):
-    st.markdown("## 🏃 Athletes")
+    _page_header("Athletes", "Manage your roster, assign plans, and review training logs.", "ROSTER MANAGEMENT")
     tab_roster, tab_add, tab_assign, tab_logs = st.tabs(
         ["Roster", "Add Athlete", "Assign Program", "View Logs"])
 
@@ -217,7 +281,7 @@ def show_athletes(user):
 
 # ── Programs (create / manage structure) ──────────────────────────────────────
 def show_programs(user):
-    st.markdown("## 📋 Programs")
+    _page_header("Programs", "Create training plans and organize them into phases.", "PROGRAM LIBRARY")
     tab_list, tab_new = st.tabs(["My Programs", "Create New"])
 
     with tab_new:
@@ -277,7 +341,7 @@ def show_programs(user):
 
 # ── BUILD WORKOUT (the fast day builder) ──────────────────────────────────────
 def show_workout_builder(user):
-    st.markdown("## 🏗️ Build Workout")
+    _page_header("Workout Builder", "Build training days with exercises, sets, reps, notes, and supersets.", "PROGRAM DESIGN")
 
     programs = get_programs(user["id"])
     if not programs:
@@ -430,7 +494,7 @@ def show_workout_builder(user):
 
 # ── Exercise Library ───────────────────────────────────────────────────────────
 def show_library():
-    st.markdown("## 📚 Exercise Library")
+    _page_header("Exercise Library", "Search and reference your exercise database.", "MOVEMENT DATABASE")
     library = get_exercise_library()
     if not library:
         st.info("Library is empty.")
