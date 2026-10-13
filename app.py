@@ -1,4 +1,4 @@
-        color: var(--sos-text) !important;
+        import streamlit as st
         background: transparent !important;
     }
     [data-baseweb="input"] > div:focus-within,
