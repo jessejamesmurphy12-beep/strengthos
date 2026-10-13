@@ -1,3 +1,99 @@
+import streamlit as st
+from database import get_user_by_email, create_user, verify_password
+
+
+def login_page():
+    # Centered sign-in experience. Global styling is inherited from app.py.
+    left, center, right = st.columns([1, 1.5, 1], gap="large")
+
+    with center:
+        st.markdown(
+            """
+            <div class="sos-auth-brand">
+                <div class="sos-auth-mark">⚡</div>
+                <div class="sos-auth-title">StrengthOS</div>
+                <div class="sos-auth-subtitle">ATHLETE PERFORMANCE PLATFORM</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        tab_login, tab_register = st.tabs(["Sign In", "Create Account"])
+
+        with tab_login:
+            st.markdown("### Welcome back")
+            st.caption("Sign in to access your training workspace.")
+
+            with st.form("strengthos_login_form", clear_on_submit=False):
+                email = st.text_input(
+                    "Email",
+                    key="login_email",
+                    placeholder="you@example.com",
+                ).strip()
+                password = st.text_input(
+                    "Password",
+                    type="password",
+                    key="login_pw",
+                    placeholder="Enter your password",
+                )
+                submitted = st.form_submit_button(
+                    "Sign In",
+                    use_container_width=True,
+                    type="primary",
+                )
+
+            if submitted:
+                if not email or not password:
+                    st.error("Please enter your email and password.")
+                else:
+                    try:
+                        user = get_user_by_email(email)
+                        if user and verify_password(password, user["password_hash"]):
+                            st.session_state.user = user
+                            st.rerun()
+                        else:
+                            st.error("Email or password is incorrect.")
+                    except Exception:
+                        st.error(
+                            "We couldn't sign you in right now. Please try again. "
+                            "If the problem continues, contact your coach or administrator."
+                        )
+
+            st.markdown(
+                """
+                <div class="sos-auth-note">
+                    <strong>Welcome to StrengthOS</strong>
+                    <span>Use your coach-provided account to sign in, or create an account below.</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with tab_register:
+            st.markdown("### Create your account")
+            st.caption("Set up your profile to get started.")
+
+            with st.form("strengthos_register_form", clear_on_submit=False):
+                role_label = st.selectbox(
+                    "Account type",
+                    ["Athlete", "Coach"],
+                    key="reg_role",
+                )
+                name = st.text_input(
+                    "Full name",
+                    key="reg_name",
+                    placeholder="Your full name",
+                ).strip()
+                reg_email = st.text_input(
+                    "Email",
+                    key="reg_email",
+                    placeholder="you@example.com",
+                ).strip().lower()
+                reg_pw = st.text_input(
+                    "Password",
+                    type="password",
+                    key="reg_pw",
+                    placeholder="At least 6 characters",
                 )
                 reg_pw2 = st.text_input(
                     "Confirm password",
@@ -126,3 +222,14 @@ st.markdown(
         margin-top: 1rem;
         color: #f3f6fb;
         font-size: .88rem;
+    }
+    .sos-auth-note strong {
+        color: #f0d98d;
+    }
+    .sos-auth-note span {
+        color: #a7b4c7;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
