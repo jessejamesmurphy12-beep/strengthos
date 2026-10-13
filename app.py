@@ -244,6 +244,42 @@ st.markdown(
             padding: 1rem;
         }
     }
+
+
+    /* StrengthOS premium product shell */
+    .sos-page-kicker { color: var(--sos-gold); text-transform: uppercase; letter-spacing: .16em; font-size: .72rem; font-weight: 800; margin-bottom: .45rem; }
+    .sos-page-title { font-size: clamp(1.8rem, 3vw, 2.55rem); line-height: 1.08; font-weight: 850; letter-spacing: -.045em; color: #f7f9fc; margin: 0; }
+    .sos-page-subtitle { color: #9eafc5; font-size: .96rem; margin-top: .55rem; margin-bottom: 1.5rem; }
+    .sos-panel { background: linear-gradient(145deg, rgba(19,35,57,.98), rgba(12,24,41,.98)); border: 1px solid #263b56; border-radius: 16px; padding: 1.15rem 1.25rem; box-shadow: 0 12px 32px rgba(0,0,0,.12); }
+    .sos-panel-label { font-size: .72rem; color: #9fb0c5; text-transform: uppercase; letter-spacing: .12em; font-weight: 750; }
+    .sos-panel-title { color: #f5f7fb; font-size: 1.05rem; font-weight: 780; margin-top: .4rem; }
+    .sos-panel-copy { color: #9eafc5; font-size: .86rem; margin-top: .25rem; }
+    .sos-stat { min-height: 142px; position: relative; overflow: hidden; background: linear-gradient(145deg,#152944,#0f1c2f); border: 1px solid #2b405c; border-radius: 16px; padding: 1.2rem 1.25rem; }
+    .sos-stat:after { content: ''; position: absolute; width: 100px; height: 100px; border-radius: 50%; right: -36px; top: -40px; border: 1px solid rgba(210,177,92,.20); box-shadow: 0 0 0 14px rgba(210,177,92,.025), 0 0 0 28px rgba(210,177,92,.02); }
+    .sos-stat-top { color: #a7b7cb; font-size: .78rem; font-weight: 700; letter-spacing: .03em; }
+    .sos-stat-value { color: #fff; font-size: 2.1rem; font-weight: 850; line-height: 1.2; margin: .55rem 0 .35rem; letter-spacing: -.04em; }
+    .sos-stat-foot { color: #d4b965; font-size: .78rem; font-weight: 650; }
+    .sos-list-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid rgba(47,67,93,.7); }
+    .sos-list-row:last-child { border-bottom: 0; }
+    .sos-list-name { color: #f3f6fb; font-size: .93rem; font-weight: 750; }
+    .sos-list-meta { color: #9eafc5; font-size: .78rem; margin-top: .18rem; }
+    .sos-pill { display: inline-block; border: 1px solid rgba(210,177,92,.4); background: rgba(210,177,92,.1); color: #e5cb7a; padding: .22rem .55rem; border-radius: 99px; font-size: .68rem; font-weight: 800; white-space: nowrap; }
+    .sos-auth-brand { text-align: center; padding: 1.5rem 0 1rem; }
+    .sos-auth-mark { display: inline-flex; align-items: center; justify-content: center; width: 58px; height: 58px; border-radius: 17px; color: #101827; background: linear-gradient(145deg,#f0d98d,#c7a447); font-size: 1.7rem; box-shadow: 0 10px 25px rgba(210,177,92,.18); }
+    .sos-auth-title { color: #f7f9fc; font-size: 2rem; font-weight: 900; letter-spacing: -.05em; margin-top: .65rem; }
+    .sos-auth-subtitle { color: #9eafc5; font-size: .7rem; font-weight: 800; letter-spacing: .18em; margin-top: .25rem; }
+    .sos-auth-note { border: 1px solid #293d58; border-radius: 12px; padding: .9rem 1rem; margin-top: 1rem; background: rgba(15,29,48,.8); }
+    .sos-auth-note strong { display:block; color:#e4c875; font-size:.85rem; margin-bottom:.2rem; }
+    .sos-auth-note span { color:#9eafc5; font-size:.8rem; }
+    [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] { gap: .3rem; }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label { border: 1px solid transparent; padding: .55rem .7rem; border-radius: 10px; transition: all .15s ease; }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) { background: rgba(210,177,92,.11); border-color: rgba(210,177,92,.3); }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) p { color: #f0d98d !important; font-weight: 800; }
+    [data-testid="stMetric"] { background: linear-gradient(145deg,#152944,#0f1c2f); border: 1px solid #2b405c; padding: 1rem 1.1rem; border-radius: 14px; }
+    [data-testid="stMetricLabel"] { color: #a7b7cb !important; }
+    [data-testid="stMetricValue"] { color: #fff !important; }
+    [data-testid="stVerticalBlockBorderWrapper"] { border-color: #2a405d !important; border-radius: 14px !important; background: rgba(16,29,48,.58); }
+
     </style>
     """,
     unsafe_allow_html=True,
