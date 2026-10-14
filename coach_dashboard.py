@@ -288,13 +288,14 @@ def show_athletes(user):
             with m1:
                 with st.form("edit_athlete"):
                     c1, c2 = st.columns(2)
-                    new_name = c1.text_input("Name", value=athlete.get("name",""))
-                    new_sport = c2.text_input("Sport", value=athlete.get("sport",""))
-                    new_pos  = c1.text_input("Position", value=athlete.get("position",""))
-                    new_year = c2.text_input("Year", value=athlete.get("year",""))
+                    new_name  = c1.text_input("Name",     value=athlete.get("name",""))
+                    new_sport = c2.text_input("Sport",    value=athlete.get("sport",""))
+                    new_pos   = c1.text_input("Position", value=athlete.get("position",""))
+                    new_year  = c2.text_input("Year",     value=athlete.get("year",""))
+                    new_notes = st.text_area("Notes",     value=athlete.get("notes",""), placeholder="Optional coaching notes")
                     if st.form_submit_button("Save Changes", type="primary"):
                         try:
-                            update_athlete(athlete["id"], new_name, new_sport, new_pos, new_year)
+                            update_athlete(athlete["id"], new_name, new_sport, new_pos, new_year, new_notes)
                             st.success("Profile updated.")
                             st.rerun()
                         except Exception:
@@ -344,12 +345,13 @@ def show_programs(user):
 
                     if phases:
                         for ph in phases:
-                            days = get_days(ph["id"])
+                            days      = get_days(ph["id"])
+                            week_range = f"Wk {ph.get('week_start','?')}–{ph.get('week_end','?')}"
                             st.markdown(f"""
                             <div class="sos-day-banner">
                                 <div>
                                     <div class="sos-day-banner-title">{ph['name']}</div>
-                                    <div class="sos-day-banner-meta">{len(days)} day{'s' if len(days)!=1 else ''}</div>
+                                    <div class="sos-day-banner-meta">{week_range} · {len(days)} day{'s' if len(days)!=1 else ''}</div>
                                 </div>
                                 <span class="sos-day-banner-pill">{ph.get('sets','—')} sets · {ph.get('reps','—')} reps · RPE {ph.get('rpe','—')}</span>
                             </div>
@@ -358,15 +360,18 @@ def show_programs(user):
                     _divider()
                     st.caption("ADD PHASE")
                     with st.form(f"add_phase_{p['id']}"):
+                        ph_name = st.text_input("Phase name", placeholder="e.g. Accumulation Block")
                         c1, c2 = st.columns(2)
-                        ph_name = c1.text_input("Phase name", placeholder="e.g. Accumulation Block")
+                        ph_week_start = c1.number_input("Start week", min_value=1, max_value=52, value=1, key=f"ws_{p['id']}")
+                        ph_week_end   = c2.number_input("End week",   min_value=1, max_value=52, value=4, key=f"we_{p['id']}")
                         c3, c4, c5 = st.columns(3)
-                        ph_sets = c3.text_input("Sets", placeholder="4")
-                        ph_reps = c4.text_input("Reps", placeholder="6–8")
-                        ph_rpe  = c5.text_input("RPE", placeholder="7–8")
+                        ph_sets  = c3.text_input("Sets", placeholder="4")
+                        ph_reps  = c4.text_input("Reps", placeholder="6–8")
+                        ph_rpe   = c5.text_input("RPE",  placeholder="7–8")
+                        ph_notes = st.text_input("Phase notes (optional)", placeholder="e.g. Deload week 4")
                         if st.form_submit_button("Add Phase →", type="primary"):
                             if ph_name:
-                                add_phase(p["id"], ph_name, ph_sets, ph_reps, ph_rpe)
+                                add_phase(p["id"], ph_name, ph_week_start, ph_week_end, ph_sets, ph_reps, ph_rpe, ph_notes)
                                 st.success(f"Phase '{ph_name}' added.")
                                 st.rerun()
 
@@ -378,11 +383,13 @@ def show_programs(user):
     with tab_new:
         st.markdown("#### Create a new training program")
         with st.form("new_program"):
-            name = st.text_input("Program name", placeholder="e.g. Off-Season Power Block")
-            goal = st.text_input("Training goal", placeholder="e.g. Max strength, velocity development")
+            name        = st.text_input("Program name", placeholder="e.g. Off-Season Power Block")
+            description = st.text_input("Description (optional)", placeholder="e.g. 12-week off-season block")
+            goal        = st.text_input("Training goal", placeholder="e.g. Max strength, velocity development")
+            weeks       = st.number_input("Duration (weeks)", min_value=1, max_value=52, value=8)
             if st.form_submit_button("Create Program →", type="primary", use_container_width=True):
                 if name:
-                    create_program(user["id"], name, goal)
+                    create_program(user["id"], name, description, goal, weeks)
                     st.success(f"Program '{name}' created.")
                     st.rerun()
                 else:
