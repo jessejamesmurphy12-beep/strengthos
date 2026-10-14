@@ -19,7 +19,6 @@ from database import (
 
 
 def log_set(athlete_id, exercise_id, set_num, reps, weight, notes):
-    """Save one completed set to the existing workout_logs table."""
     conn = get_conn()
     try:
         cursor = conn.cursor()
@@ -39,32 +38,50 @@ def log_set(athlete_id, exercise_id, set_num, reps, weight, notes):
         conn.close()
 
 
+def _parse_set_count(value):
+    try:
+        text = str(value or "3").strip().replace("–","-").replace("—","-")
+        return max(1, int(text.split("-")[0].strip()))
+    except (TypeError, ValueError):
+        return 3
+
+
+def _divider():
+    st.markdown("<div style='height:0.1rem;background:var(--border);margin:1.25rem 0;border-radius:1px;'></div>", unsafe_allow_html=True)
+
+
 def athlete_dashboard():
     user = st.session_state.user
 
     with st.sidebar:
-        st.markdown(
-            f"""
-            <div style="padding:1rem 0 .75rem;">
-                <div style="font-size:1.7rem;">⚡</div>
-                <div style="font-size:1.15rem;font-weight:800;letter-spacing:-.02em;">StrengthOS</div>
-                <div style="font-size:.78rem;color:#a7b4c7;margin-top:.2rem;">ATHLETE PORTAL</div>
-                <div style="height:1px;background:#263852;margin:1rem 0;"></div>
-                <div style="font-size:.9rem;">Welcome, {user.get("name", "Athlete")}</div>
+        st.markdown(f"""
+        <div style="padding:1.25rem 0.75rem 1rem;">
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;">
+                <div style="width:40px;height:40px;border-radius:12px;
+                            background:linear-gradient(145deg,#e8cc7a,#a8782a);
+                            display:flex;align-items:center;justify-content:center;
+                            font-size:1.2rem;flex-shrink:0;">⚡</div>
+                <div>
+                    <div style="font-size:1rem;font-weight:900;letter-spacing:-0.03em;color:#eef2f8;">StrengthOS</div>
+                    <div style="font-size:0.6rem;letter-spacing:0.15em;font-weight:800;color:#c9a84c;">ATHLETE PORTAL</div>
+                </div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            <div style="padding:0.7rem 0.85rem;background:#0e1520;border:1px solid #1e2d42;border-radius:10px;">
+                <div style="font-size:0.62rem;color:#5a7090;letter-spacing:0.1em;font-weight:800;text-transform:uppercase;">Signed in as</div>
+                <div style="font-size:0.88rem;font-weight:750;color:#eef2f8;margin-top:0.15rem;">{user.get('name','Athlete')}</div>
+                <div style="font-size:0.72rem;color:#5a7090;margin-top:0.1rem;">{user.get('sport','')} {('· ' + user.get('position','')) if user.get('position') else ''}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         page = st.radio(
             "Navigation",
             ["Today's Workout", "My Week", "My History"],
             label_visibility="collapsed",
-            key="athlete_navigation",
+            key="athlete_nav",
         )
-
-        st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
-        if st.button("Sign Out", use_container_width=True, key="athlete_sign_out"):
+        st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+        if st.button("↪  Sign Out", use_container_width=True, key="athlete_sign_out"):
             st.session_state.user = None
             st.rerun()
 
@@ -72,170 +89,139 @@ def athlete_dashboard():
         show_workout(user)
     elif page == "My Week":
         if athlete_calendar is None:
-            st.markdown("## My Week")
-            st.info(
-                "The calendar view is not installed yet. Your workout and history "
-                "pages are still available."
-            )
+            st.markdown("""
+            <div style="margin:0.25rem 0 1.75rem;">
+                <div class="sos-page-kicker">WEEKLY VIEW</div>
+                <div class="sos-page-title">My Week</div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.info("Calendar view coming soon. Your workout and history pages are available now.")
         else:
             athlete_calendar(user)
     elif page == "My History":
         show_history(user)
 
 
-def _parse_set_count(value):
-    """Parse prescribed sets such as '3', '3-4', or '3–4' safely."""
-    try:
-        text = str(value or "3").strip().replace("–", "-").replace("—", "-")
-        return max(1, int(text.split("-")[0].strip()))
-    except (TypeError, ValueError):
-        return 3
-
-
 def show_workout(user):
-    st.markdown("## Today's Workout")
-    st.caption("Your assigned training plan, one set at a time.")
+    st.markdown("""
+    <div style="margin:0.25rem 0 1.75rem;">
+        <div class="sos-page-kicker">TRAINING SESSION</div>
+        <div class="sos-page-title">Today's Workout</div>
+        <div class="sos-page-subtitle">Your assigned training plan, one set at a time.</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     try:
         program = get_assigned_program(user["id"])
     except Exception:
-        st.error("We couldn't load your assigned program. Please refresh and try again.")
+        st.error("Couldn't load your program. Please refresh and try again.")
         return
 
     if not program:
-        st.info("You haven't been assigned a program yet. Ask your coach to assign one.")
+        st.markdown("""
+        <div style="background:#0e1520;border:1px solid #1e2d42;border-radius:14px;
+                    padding:2rem;text-align:center;">
+            <div style="font-size:2rem;margin-bottom:0.75rem;">🏋️</div>
+            <div style="font-size:1rem;font-weight:700;color:#eef2f8;margin-bottom:0.35rem;">No program assigned yet</div>
+            <div style="font-size:0.85rem;color:#8fa3bc;">Ask your coach to assign a training program to get started.</div>
+        </div>
+        """, unsafe_allow_html=True)
         return
 
-    st.markdown(
-        f"""
-        <div style="padding:1.1rem 1.25rem;border-radius:14px;
-                    background:linear-gradient(120deg,#172d4a,#101d30);
-                    border:1px solid #30435d;margin:.5rem 0 1.2rem;">
-            <div style="font-size:.72rem;letter-spacing:.12em;font-weight:750;color:#d2b15c;">
-                YOUR TRAINING PROGRAM
-            </div>
-            <div style="font-size:1.35rem;font-weight:800;color:#f3f6fb;margin-top:.25rem;">
-                {program.get("name", "Assigned Program")}
-            </div>
-            <div style="color:#a7b4c7;font-size:.9rem;margin-top:.3rem;">
-                {program.get("goal", "Training plan")}
-            </div>
+    # Program banner
+    st.markdown(f"""
+    <div style="padding:1.1rem 1.35rem;border-radius:14px;
+                background:#0e1520;border:1px solid #1e2d42;
+                border-top:2px solid #c9a84c;margin-bottom:1.25rem;">
+        <div style="font-size:0.62rem;letter-spacing:0.14em;font-weight:800;color:#c9a84c;text-transform:uppercase;margin-bottom:0.3rem;">
+            YOUR PROGRAM
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        <div style="font-size:1.3rem;font-weight:900;color:#eef2f8;letter-spacing:-0.03em;">
+            {program.get('name','Training Program')}
+        </div>
+        <div style="font-size:0.85rem;color:#8fa3bc;margin-top:0.25rem;">
+            {program.get('goal','Training plan')}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     phases = get_phases(program["id"])
     if not phases:
         st.info("Your program doesn't have any phases yet.")
         return
 
-    phase_names = [phase["name"] for phase in phases]
-    selected_phase_name = st.selectbox(
-        "Training phase",
-        phase_names,
-        key="athlete_selected_phase",
-    )
-    phase = next(p for p in phases if p["name"] == selected_phase_name)
+    c1, c2 = st.columns(2)
+    sel_phase_name = c1.selectbox("Phase", [p["name"] for p in phases], key="athlete_phase")
+    phase = next(p for p in phases if p["name"] == sel_phase_name)
 
     days = get_days(phase["id"])
     if not days:
-        st.info("There are no workout days in this phase yet.")
+        st.info("No workout days in this phase yet.")
         return
 
-    day_labels = [f"Day {day['day_number']} — {day['title']}" for day in days]
-    selected_day_label = st.selectbox(
-        "Workout day",
-        day_labels,
-        key=f"athlete_day_{phase['id']}",
-    )
-    day = days[day_labels.index(selected_day_label)]
+    day_labels = [f"Day {d['day_number']} — {d['title']}" for d in days]
+    sel_day_label = c2.selectbox("Day", day_labels, key=f"athlete_day_{phase['id']}")
+    day = days[day_labels.index(sel_day_label)]
 
     exercises = get_exercises_for_day(day["id"])
     if not exercises:
-        st.info("No exercises have been added to this workout yet.")
+        st.info("No exercises in this workout yet.")
         return
 
-    st.markdown(
-        f"""
-        <div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;
-                    padding:.8rem 1rem;border-radius:12px;background:#101d30;
-                    border:1px solid #263852;margin:1rem 0;">
-            <span style="font-weight:750;color:#f3f6fb;">{selected_day_label}</span>
-            <span style="color:#a7b4c7;">{phase.get('sets','')} sets</span>
-            <span style="color:#a7b4c7;">{phase.get('reps','')} reps</span>
-            <span style="color:#d2b15c;">RPE {phase.get('rpe','')}</span>
+    # Day banner
+    st.markdown(f"""
+    <div class="sos-day-banner">
+        <div>
+            <div class="sos-day-banner-title">{sel_day_label}</div>
+            <div class="sos-day-banner-meta">{phase['name']}</div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        <span class="sos-day-banner-pill">{phase.get('sets','')} sets · {phase.get('reps','')} reps · RPE {phase.get('rpe','')}</span>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("### Exercises")
-    st.caption("Log each set after you complete it. Your entries are saved to your workout history.")
+    st.caption("Log each set after you complete it. Entries are saved to your history.")
 
     for exercise in exercises:
         raw_notes = exercise.get("notes") or ""
         is_superset = raw_notes.startswith("[Superset")
         if is_superset:
-            superset_tag = raw_notes.split("]")[0] + "]"
-            clean_notes = raw_notes.replace(superset_tag, "", 1).strip()
-            title = f"🔗 {superset_tag} · {exercise['name']}"
+            tag = raw_notes.split("]")[0] + "]"
+            clean_notes = raw_notes.replace(tag,"",1).strip()
+            title = f"🔗 {tag} · {exercise['name']}"
         else:
             clean_notes = raw_notes
             title = exercise["name"]
 
         with st.container(border=True):
-            st.markdown(f"#### {title}")
-            meta_left, meta_right = st.columns([1, 2])
-            meta_left.caption(
-                f"{exercise.get('sets', '—')} sets × {exercise.get('reps', '—')} reps"
-            )
+            hc1, hc2 = st.columns([2,1])
+            hc1.markdown(f"**{title}**")
+            hc2.caption(f"{exercise.get('sets','—')} sets × {exercise.get('reps','—')} reps")
             if clean_notes:
-                meta_right.caption(clean_notes)
+                st.caption(f"📌 {clean_notes}")
 
-            number_of_sets = _parse_set_count(exercise.get("sets", "3"))
-            header = st.columns([0.55, 1.1, 1.2, 2.0, 1.0])
-            for column, heading in zip(header, ["Set", "Reps", "Weight", "Notes", "Save"]):
-                column.caption(heading)
+            # Column headers
+            h1, h2, h3, h4, h5 = st.columns([0.5, 1, 1.1, 2, 1])
+            h1.caption("SET")
+            h2.caption("REPS")
+            h3.caption("WEIGHT")
+            h4.caption("NOTES")
+            h5.caption("SAVE")
 
-            for set_number in range(1, number_of_sets + 1):
-                with st.form(
-                    key=f"athlete_set_form_{exercise['id']}_{set_number}",
-                    clear_on_submit=False,
-                    border=False,
-                ):
-                    c_set, c_reps, c_weight, c_notes, c_save = st.columns(
-                        [0.55, 1.1, 1.2, 2.0, 1.0]
-                    )
-                    c_set.markdown(f"**{set_number}**")
-                    reps = c_reps.text_input(
-                        "Reps",
-                        placeholder=str(exercise.get("reps", "")),
-                        key=f"athlete_reps_{exercise['id']}_{set_number}",
-                        label_visibility="collapsed",
-                    )
-                    weight = c_weight.text_input(
-                        "Weight",
-                        placeholder="lbs / kg",
-                        key=f"athlete_weight_{exercise['id']}_{set_number}",
-                        label_visibility="collapsed",
-                    )
-                    notes = c_notes.text_input(
-                        "Notes",
-                        placeholder="Optional",
-                        key=f"athlete_notes_{exercise['id']}_{set_number}",
-                        label_visibility="collapsed",
-                    )
-                    save = c_save.form_submit_button(
-                        "Log set",
-                        use_container_width=True,
-                        type="primary",
-                    )
+            num_sets = _parse_set_count(exercise.get("sets","3"))
+            for set_num in range(1, num_sets + 1):
+                with st.form(key=f"set_{exercise['id']}_{set_num}", clear_on_submit=False, border=False):
+                    s1, s2, s3, s4, s5 = st.columns([0.5, 1, 1.1, 2, 1])
+                    s1.markdown(f"<div style='text-align:center;font-weight:800;color:#c9a84c;padding-top:0.6rem;'>{set_num}</div>", unsafe_allow_html=True)
+                    reps   = s2.text_input("Reps",   placeholder=str(exercise.get("reps","")), key=f"r_{exercise['id']}_{set_num}", label_visibility="collapsed")
+                    weight = s3.text_input("Weight", placeholder="lbs / kg",                  key=f"w_{exercise['id']}_{set_num}", label_visibility="collapsed")
+                    notes  = s4.text_input("Notes",  placeholder="Optional",                  key=f"n_{exercise['id']}_{set_num}", label_visibility="collapsed")
+                    save   = s5.form_submit_button("Log", use_container_width=True, type="primary")
 
                 if save:
                     try:
-                        log_set(user["id"], exercise["id"], set_number, reps, weight, notes)
-                        st.success(f"Set {set_number} saved.", icon="✅")
+                        log_set(user["id"], exercise["id"], set_num, reps, weight, notes)
+                        st.success(f"Set {set_num} saved ✅", icon=None)
                     except Exception:
                         st.error("Couldn't save this set. Please try again.")
 
@@ -243,69 +229,61 @@ def show_workout(user):
 
 
 def show_history(user):
-    st.markdown("## My Training History")
-    st.caption("Review your logged sets and recent training progress.")
+    st.markdown("""
+    <div style="margin:0.25rem 0 1.75rem;">
+        <div class="sos-page-kicker">ATHLETE HISTORY</div>
+        <div class="sos-page-title">My Training History</div>
+        <div class="sos-page-subtitle">Review your logged sets and progress over time.</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     try:
         logs = get_athlete_logs(user["id"], limit=200)
     except Exception:
-        st.error("We couldn't load your training history. Please refresh and try again.")
+        st.error("Couldn't load your training history. Please refresh.")
         return
 
     if not logs:
-        st.info("No workouts logged yet. Your completed sets will appear here.")
+        st.markdown("""
+        <div style="background:#0e1520;border:1px solid #1e2d42;border-radius:14px;
+                    padding:2rem;text-align:center;">
+            <div style="font-size:2rem;margin-bottom:0.75rem;">📋</div>
+            <div style="font-size:1rem;font-weight:700;color:#eef2f8;margin-bottom:0.35rem;">No workouts logged yet</div>
+            <div style="font-size:0.85rem;color:#8fa3bc;">Complete sets in Today's Workout and they'll appear here.</div>
+        </div>
+        """, unsafe_allow_html=True)
         return
 
     df = pd.DataFrame(logs)
 
-    col1, col2, col3 = st.columns(3)
+    # Summary stats
+    c1, c2, c3 = st.columns(3)
     if "logged_at" in df.columns:
         dates = df["logged_at"].astype(str).str[:10]
-        col1.metric("Training Days", dates.nunique())
-        col3.metric("Last Logged", dates.iloc[0] if not dates.empty else "—")
+        c1.metric("Training Days", dates.nunique())
+        c3.metric("Last Session", dates.iloc[0] if not dates.empty else "—")
     else:
-        col1.metric("Training Days", "—")
-        col3.metric("Last Logged", "—")
+        c1.metric("Training Days", "—")
+        c3.metric("Last Session", "—")
+    c2.metric("Exercises Tracked", int(df["exercise_name"].nunique()) if "exercise_name" in df.columns else 0)
 
-    col2.metric(
-        "Exercises Tracked",
-        int(df["exercise_name"].nunique()) if "exercise_name" in df.columns else 0,
-    )
-
-    st.divider()
+    _divider()
 
     if "exercise_name" not in df.columns:
-        st.warning("Your workout log data doesn't include exercise names.")
         st.dataframe(df, use_container_width=True, hide_index=True)
         return
 
-    exercise_options = ["All exercises"] + sorted(
-        df["exercise_name"].dropna().astype(str).unique().tolist()
-    )
-    selected_exercise = st.selectbox(
-        "Filter exercises",
-        exercise_options,
-        key="athlete_history_filter",
-    )
-    filtered = df if selected_exercise == "All exercises" else df[
-        df["exercise_name"] == selected_exercise
-    ]
+    exercise_options = ["All exercises"] + sorted(df["exercise_name"].dropna().astype(str).unique().tolist())
+    selected = st.selectbox("Filter by exercise", exercise_options, key="history_filter")
+    filtered = df if selected == "All exercises" else df[df["exercise_name"] == selected]
 
-    wanted_columns = [
-        "logged_at", "exercise_name", "sets_done", "reps_done", "weight", "notes"
-    ]
-    available_columns = [column for column in wanted_columns if column in filtered.columns]
-    display = filtered[available_columns].copy()
-    display = display.rename(
-        columns={
-            "logged_at": "Date",
-            "exercise_name": "Exercise",
-            "sets_done": "Set #",
-            "reps_done": "Reps",
-            "weight": "Weight",
-            "notes": "Notes",
-        }
-    )
+    wanted = ["logged_at","exercise_name","sets_done","reps_done","weight","notes"]
+    available = [c for c in wanted if c in filtered.columns]
+    display = filtered[available].copy().rename(columns={
+        "logged_at":"Date","exercise_name":"Exercise",
+        "sets_done":"Set #","reps_done":"Reps",
+        "weight":"Weight","notes":"Notes",
+    })
     if "Date" in display.columns:
         display["Date"] = display["Date"].astype(str).str[:10]
 
